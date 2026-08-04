@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <base target="_top">
+    <title>Interactive Demo | Bingo to the Beat</title>
+    <style>
+        <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+        body.mobile-card-body { background-color: var(--bg-base); margin: 0; padding: 10px; user-select: none; color: var(--text-main); padding-bottom: 80px; }
+        .card-container { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+        
+        .mobile-header { background: var(--bg-panel); padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .booklet-badge { background: var(--primary); color: #ffffff; font-weight: 900; padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; }
+        
+        /* COOL CSS TOGGLE SWITCH */
+        .art-control-group { display: flex; align-items: center; gap: 8px; }
+        .art-switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+        .art-switch input { opacity: 0; width: 0; height: 0; }
+        .art-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-input); transition: .3s; border-radius: 26px; border: 1px solid var(--border-color); }
+        .art-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-muted); transition: .3s; border-radius: 50%; }
+        .art-switch input:checked + .art-slider { background-color: rgba(59, 130, 246, 0.15); border-color: var(--primary); }
+        .art-switch input:checked + .art-slider:before { transform: translateX(20px); background-color: var(--primary); box-shadow: 0 0 10px var(--primary); }
+        
+        /* Thumbnail Art */
+        .art-thumbnail { width: 45px; height: 45px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-color); cursor: pointer; transition: transform 0.2s; }
+        .art-thumbnail:active { transform: scale(0.95); }
+
+        /* FULL-SIZE ALBUM MODAL */
+        .album-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 8000; display: none; align-items: center; justify-content: center; flex-direction: column; cursor: pointer; }
+        .album-modal-overlay img { width: 90%; max-width: 400px; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-lg); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid var(--border-color); }
+        .album-modal-overlay p { color: var(--text-muted); margin-top: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+
+        .tab-bar { display: flex; justify-content: space-between; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 30px; padding: 4px; margin-bottom: 5px; }
+        .tab-btn { flex: 1; padding: 12px 0; background: transparent; border: none; color: var(--text-muted); font-weight: 900; font-size: 1.2rem; border-radius: 25px; cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { background: var(--primary); color: #fff; }
+
+        .bingo-board { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 10px; min-height: 380px; }
+        .grid-5x5 { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 4px; }
+        .vertical-column-view { display: flex; flex-direction: column; gap: 8px; }
+
+        .card-cell { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; color: var(--text-main); padding: 4px; position: relative; cursor: pointer; line-height: 1.15; overflow: hidden; }
+        .grid-5x5 .card-cell { aspect-ratio: 1; font-size: 0.65rem; }
+        .vertical-column-view .card-cell { height: 70px; font-size: 1.4rem; font-weight: 900; border-radius: var(--radius-md); padding: 10px 20px; }
+        
+        .card-cell.daubed { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+        .card-cell.daubed::after { content: "✓"; position: absolute; font-size: 2.5rem; color: rgba(255, 255, 255, 0.2); font-weight: 900; }
+        .vertical-column-view .card-cell.daubed::after { font-size: 4rem; right: 20px; }
+        .card-cell.free-space { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+
+        .bingo-celebration-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .bingo-celebration-overlay h1 { font-size: 5rem; color: var(--success); text-shadow: 0 0 30px rgba(16, 185, 129, 0.8); margin: 0; animation: pulse-glow-green 1s infinite; }
+        .bingo-celebration-overlay p { color: #fff; font-size: 1.5rem; margin-top: 10px; }
+        @keyframes pulse-glow-green { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        .demo-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--accent); padding: 15px; text-align: center; box-sizing: border-box; z-index: 1000; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
+        .demo-btn { background: #fff; color: var(--accent); border: none; padding: 12px 24px; font-size: 1.2rem; font-weight: 900; border-radius: 30px; cursor: pointer; text-transform: uppercase; }
+    </style>
+</head>
+<body class="mobile-card-body">
+
+    <!-- BINGO WIN OVERLAY -->
+    <div id="bingo-celebration" class="bingo-celebration-overlay" onclick="location.reload()">
+        <h1>BINGO!</h1>
+        <p>Yell it out to the Host!</p>
+        <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 30px;">(Tap anywhere to restart demo)</span>
+    </div>
+
+    <!-- FULL SIZE ALBUM ART MODAL -->
+    <div id="album-modal-overlay" class="album-modal-overlay" onclick="closeAlbumModal()">
+        <img id="album-modal-img" src="">
+        <p>Tap anywhere to close</p>
+    </div>
+
+    <div class="card-container">
+        
+        <header class="mobile-header">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                
+                <div id="art-control-group" class="art-control-group">
+                    <label class="art-switch">
+                        <input type="checkbox" id="art-toggle-checkbox" checked onchange="toggleArt(this.checked)">
+                        <span class="art-slider"></span>
+                    </label>
+                    <img id="header-art-img" class="art-thumbnail" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100" onclick="openAlbumModal()">
+                </div>
+                
+                <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">INTERACTIVE DEMO</div>
+                    <div style="font-size: 1.2rem; font-weight: 900; color: var(--text-main);">GAME <span style="color: var(--primary);">1</span></div>
+                </div>
+            </div>
+            <div class="booklet-badge">PACK #101</div>
+        </header>
+
+        <nav class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('ALL')" id="tab-ALL">ALL</button>
+            <button class="tab-btn" onclick="switchTab('B')" id="tab-B">B</button>
+            <button class="tab-btn" onclick="switchTab('I')" id="tab-I">I</button>
+            <button class="tab-btn" onclick="switchTab('N')" id="tab-N">N</button>
+            <button class="tab-btn" onclick="switchTab('G')" id="tab-G">G</button>
+            <button class="tab-btn" onclick="switchTab('O')" id="tab-O">O</button>
+        </nav>
+
+        <main class="bingo-board">
+            <div id="bingo-grid" class="grid-5x5"></div>
+        </main>
+    </div>
+
+    <div class="demo-controls">
+        <div id="demo-instruction" style="color: #fff; font-weight: bold; margin-bottom: 10px;">Play the demo! Tap the button below to call a song.</div>
+        <button class="demo-btn" onclick="simulateNextSong()">▶ Call Next Song</button>
+    </div>
+
+    <script>
+        const dummySongs = [
+            "Sweet Home Alabama", "Ring of Fire", "Jolene", "Friends in Low Places", "The Dance",
+            "Crazy", "I Walk The Line", "Fancy", "Amarillo by Morning", "Always on My Mind",
+            "Stand By Your Man", "He Stopped Loving Her Today", "FREE", "Mama Tried", "Coal Miner's Daughter",
+            "Galveston", "Blue Eyes Crying in the Rain", "Wichita Lineman", "Hello Darlin'", "El Paso",
+            "Rhinestone Cowboy", "King of the Road", "Okie From Muskogee", "Folsom Prison Blues", "Pancho and Lefty"
+        ];
+
+        const winningSequence = [
+            { index: 0, song: "Sweet Home Alabama", letter: "B" },
+            { index: 6, song: "I Walk The Line", letter: "I" },
+            { index: 18, song: "Hello Darlin'", letter: "G" },
+            { index: 24, song: "Pancho and Lefty", letter: "O" }
+        ];
+
+        let currentTab = 'ALL';
+        let daubedSquares = [12]; 
+        let step = 0;
+        let playerWantsArt = true;
+
+        function toggleArt(isChecked) {
+            playerWantsArt = isChecked;
+            document.getElementById('header-art-img').style.display = playerWantsArt ? 'block' : 'none';
+        }
+
+        function openAlbumModal() {
+            if (!playerWantsArt) return;
+            document.getElementById('album-modal-img').src = document.getElementById('header-art-img').src;
+            document.getElementById('album-modal-overlay').style.display = 'flex';
+        }
+
+        function closeAlbumModal() {
+            document.getElementById('album-modal-overlay').style.display = 'none';
+        }
+
+        function renderBingoGrid() {
+            const gridContainer = document.getElementById('bingo-grid');
+            gridContainer.innerHTML = '';
+            gridContainer.className = currentTab === 'ALL' ? 'grid-5x5' : 'vertical-column-view';
+
+            let columnsToShow = [0, 1, 2, 3, 4];
+            if (currentTab === 'B') columnsToShow = [0];
+            if (currentTab === 'I') columnsToShow = [1];
+            if (currentTab === 'N') columnsToShow = [2];
+            if (currentTab === 'G') columnsToShow = [3];
+            if (currentTab === 'O') columnsToShow = [4];
+
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    if (columnsToShow.includes(col)) {
+                        let globalIndex = (row * 5) + col;
+                        let cell = document.createElement('div');
+                        cell.className = 'card-cell';
+                        cell.dataset.index = globalIndex;
+                        
+                        if (globalIndex === 12) {
+                            cell.className += ' free-space';
+                            cell.innerHTML = '🎵<br>FREE<br>SPACE';
+                        } else {
+                            cell.innerText = dummySongs[globalIndex];
+                        }
+
+                        if (daubedSquares.includes(globalIndex)) cell.classList.add('daubed');
+                        
+                        cell.onclick = function() { toggleDaub(this); };
+                        gridContainer.appendChild(cell);
+                    }
+                }
+            }
+        }
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            renderBingoGrid();
+        }
+
+        function toggleDaub(element) {
+            let index = parseInt(element.dataset.index);
+            if (index === 12) return; 
+
+            if (element.classList.contains('daubed')) {
+                element.classList.remove('daubed');
+                daubedSquares = daubedSquares.filter(i => i !== index);
+            } else {
+                element.classList.add('daubed');
+                daubedSquares.push(index);
+                checkDemoBingo();
+            }
+        }
+
+        function simulateNextSong() {
+            // Check if they exhausted the song list without a bingo
+            if (step >= winningSequence.length) {
+                const hasBingo = [0, 6, 12, 18, 24].every(val => daubedSquares.includes(val));
+                if (!hasBingo) {
+                    alert("Oh no, a missed bingo..let's try that again");
+                    location.reload();
+                } else {
+                    document.getElementById('bingo-celebration').style.display = 'flex';
+                }
+                return;
+            }
+
+            let play = winningSequence[step];
+            document.getElementById('demo-instruction').innerText = `DJ CALLED: "${play.letter}" - ${play.song}`;
+            
+            // Activate the art toggle visually if it's off during a track advance
+            if(!playerWantsArt) {
+                document.getElementById('art-toggle-checkbox').checked = true;
+                toggleArt(true);
+            }
+
+            switchTab(play.letter);
+            step++;
+
+            // If that was the last song, change the button text to prompt them to verify
+            if (step >= winningSequence.length) {
+                document.querySelector('.demo-btn').innerText = "Check For Bingo";
+            }
+        }
+
+        function checkDemoBingo() {
+            const hasBingo = [0, 6, 12, 18, 24].every(val => daubedSquares.includes(val));
+            if (hasBingo) {
+                setTimeout(() => {
+                    document.getElementById('bingo-celebration').style.display = 'flex';
+                }, 500);
+            }
+        }
+
+        renderBingoGrid();
+    </script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!-- File: card.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <base target="_top">
+  <title>Virtual Bingo Card</title>
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+    body.mobile-card-body {
+        background-color: #eaddc5; margin: 0; padding: 10px;
+        font-family: system-ui, -apple-system, sans-serif;
+        user-select: none; -webkit-user-select: none;
+    }
+    .card-container { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    
+    .mobile-header {
+        background: #3e2723; color: #ffffff; padding: 10px 15px; border-radius: 8px;
+        border: 2px solid #8b5a2b; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .booklet-badge { background: #ffd700; color: #3e2723; font-weight: 900; padding: 4px 10px; border-radius: 20px; font-size: 0.9rem; }
+    
+    .pattern-banner {
+        background: #fffdf9; border: 2px solid #8b5a2b; border-radius: 8px; padding: 10px 15px;
+        display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .mini-pattern-grid {
+        width: 50px; height: 50px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+        gap: 1px; background: #8b5a2b; padding: 2px; border-radius: 4px;
+    }
+    .mini-cell { background: #ffffff; border-radius: 1px; }
+    .mini-cell.active { background: #c62828; }
+    
+    .bingo-board { background: #fffdf9; border: 3px solid #8b5a2b; border-radius: 10px; padding: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+    .bingo-header-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 6px; text-align: center; }
+    .bingo-letter { background: #3e2723; color: #ffd700; font-weight: 900; font-size: 1.3rem; padding: 6px 0; border-radius: 4px; }
+    .grid-5x5 { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 4px; }
+    
+    .card-cell {
+        aspect-ratio: 1; background: #ffffff; border: 1.5px solid #8b5a2b; border-radius: 6px;
+        display: flex; align-items: center; justify-content: center; text-align: center;
+        font-size: 0.7rem; font-weight: 800; color: #2c1a0e; padding: 3px; box-sizing: border-box;
+        position: relative; cursor: pointer; word-break: break-word; line-height: 1.1; transition: all 0.15s ease;
+    }
+    .card-cell.daubed { background: #fdf2e9; border-color: #c62828; color: #c62828; }
+    .card-cell.daubed::after {
+        content: "⭐"; position: absolute; font-size: 2.2rem; color: rgba(198, 40, 40, 0.45); font-weight: 900; pointer-events: none; opacity: 0.7;
+    }
+    .card-cell.free-space { background: #3e2723; color: #ffd700; border-color: #8b5a2b; }
+    
+    .btn-call-bingo {
+        background: #c62828; color: #ffffff; border: 2px solid #8e0000; border-radius: 10px; padding: 16px;
+        font-size: 1.4rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+        box-shadow: 0 4px 10px rgba(198, 40, 40, 0.4); text-align: center;
+    }
+    .btn-call-bingo:active { transform: scale(0.98); }
+    
+    .game-toast {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1976d2; color: white;
+        padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 0.95rem; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        display: none; z-index: 1000; text-align: center;
+    }
+  </style>
+</head>
+<body class="mobile-card-body">
+
+  <!-- PIN GATEKEEPER OVERLAY -->
+  <div id="pin-gate-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #3e2723; z-index: 2000; display: flex; justify-content: center; align-items: center; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: center;">
+      <h2 style="color: #ffd700; font-size: 2rem; margin-bottom: 10px;">ENTER ACCESS PIN</h2>
+      <p style="color: #fdf8f0; margin-bottom: 25px;">Please enter the unique 4-digit PIN associated with your purchase to unlock your booklet.</p>
+      <input type="number" id="access-pin-input" placeholder="0000" maxlength="4" style="font-size: 2.5rem; text-align: center; width: 160px; padding: 10px; border-radius: 8px; border: 3px solid #8b5a2b; margin-bottom: 20px; outline: none; letter-spacing: 5px; background: #fffdf9; color: #3e2723; font-weight: 900;">
+      <button id="btn-submit-pin" onclick="submitPin()" class="btn-call-bingo" style="width: 100%; max-width: 300px; background: #1976d2; border-color: #0d47a1;">UNLOCK BOOKLET</button>
+      <div id="pin-error-msg" style="color: #ff5252; margin-top: 15px; font-weight: bold; font-size: 1.1rem; min-height: 25px;"></div>
+  </div>
+
+  <div id="game-toast" class="game-toast">Game Advanced! Card updated.</div>
+  
+  <div class="card-container" style="display: none;">
+    <header class="mobile-header">
+      <div>
+        <div id="event-theme-display" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">Loading Theme...</div>
+        <div style="font-size: 1.1rem; font-weight: 900; color: #ffd700;">GAME <span id="game-num-display">1</span></div>
+      </div>
+      <div class="booklet-badge">PACK #<span id="booklet-id-display">--</span></div>
+    </header>
+
+    <section class="pattern-banner">
+      <div>
+        <div style="font-size: 0.7rem; color: #8b5a2b; font-weight: 800; text-transform: uppercase;">Winning Pattern</div>
+        <div id="pattern-title-display" style="font-size: 1rem; font-weight: 900; color: #c62828;">Loading...</div>
+      </div>
+      <div id="mini-pattern-grid" class="mini-pattern-grid"></div>
+    </section>
+
+    <main class="bingo-board">
+      <div class="bingo-header-row">
+        <div class="bingo-letter">B</div>
+        <div class="bingo-letter">I</div>
+        <div class="bingo-letter">N</div>
+        <div class="bingo-letter">G</div>
+        <div class="bingo-letter">O</div>
+      </div>
+      <div id="bingo-grid" class="grid-5x5">
+        <!-- Cells rendered dynamically -->
+      </div>
+    </main>
+
+    <button id="btn-call-bingo" onclick="handleCallBingo()" class="btn-call-bingo">CALL BINGO!</button>
+  </div>
+
+  <script>
+    var currentEventId = "<?= eventId ?>" || "EVT_017046";
+    var currentBookletId = localStorage.getItem('BTB_BOOKLET_ID_' + currentEventId);
+    var activeGameNumber = null;
+    var currentCardSongs = [];
+    var activePatternName = "";
+    var globalCatalog = [];
+    var isPolling = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // If bookletId is already saved in local storage, skip the PIN gate
+        if (currentBookletId) {
+            unlockScreen();
+        }
+        
+        google.script.run.withSuccessHandler(function(catalog) {
+            globalCatalog = catalog || [];
+            if (currentBookletId) pollGameState();
+        }).getPatternCatalog();
+    });
+
+    function submitPin() {
+        var pinInput = document.getElementById('access-pin-input').value;
+        var btn = document.getElementById('btn-submit-pin');
+        var errorMsg = document.getElementById('pin-error-msg');
+        
+        if (!pinInput || pinInput.length < 4) { errorMsg.innerText = "Please enter a 4-digit PIN."; return; }
+        
+        btn.innerText = "VERIFYING..."; btn.disabled = true; errorMsg.innerText = "";
+        
+        google.script.run.withSuccessHandler(function(res) {
+            btn.innerText = "UNLOCK BOOKLET"; btn.disabled = false;
+            if (res.success) {
+                currentBookletId = res.bookletId;
+                localStorage.setItem('BTB_BOOKLET_ID_' + currentEventId, currentBookletId);
+                unlockScreen();
+                pollGameState();
+            } else {
+                errorMsg.innerText = res.message;
+            }
+        }).withFailureHandler(function(err) {
+            btn.innerText = "UNLOCK BOOKLET"; btn.disabled = false;
+            errorMsg.innerText = "Network error. Try again.";
+        }).verifyVirtualCardPin(currentEventId, pinInput);
+    }
+
+    function unlockScreen() {
+        document.getElementById('pin-gate-overlay').style.display = 'none';
+        document.querySelector('.card-container').style.display = 'flex';
+        document.getElementById('booklet-id-display').innerText = currentBookletId;
+        setInterval(pollGameState, 3000); // Check for game advances
+    }
+
+    function pollGameState() {
+        if (isPolling) return;
+        isPolling = true;
+        google.script.run.withSuccessHandler(function(state) {
+            isPolling = false;
+            if (!state) return;
+
+            if (state.themeName) document.getElementById('event-theme-display').innerText = state.themeName;
+
+            // Auto-advance checking
+            if (activeGameNumber !== state.currentGameNumber) {
+                var isInitialLoad = (activeGameNumber === null);
+                activeGameNumber = state.currentGameNumber;
+                document.getElementById('game-num-display').innerText = activeGameNumber;
+                if (!isInitialLoad) showToast("Game #" + activeGameNumber + " Started! Card updated.");
+                loadBookletCardGrid();
+            }
+
+            if (activePatternName !== state.activePattern) {
+                activePatternName = state.activePattern || "Standard Bingo (Any Line)";
+                document.getElementById('pattern-title-display').innerText = activePatternName;
+                renderMiniPattern(activePatternName);
+            }
+        }).withFailureHandler(function() { isPolling = false; }).getLiveGameState(currentEventId);
+    }
+
+    function loadBookletCardGrid() {
+        google.script.run.withSuccessHandler(function(cardData) {
+            if (!cardData || !cardData.songs) return;
+            currentCardSongs = cardData.songs;
+            renderGrid();
+        }).getVirtualCardForBooklet(currentEventId, currentBookletId, activeGameNumber);
+    }
+
+    function renderGrid() {
+        var gridContainer = document.getElementById('bingo-grid');
+        if (!gridContainer) return;
+        gridContainer.innerHTML = '';
+        
+        var storageKey = 'BTB_DAUBS_' + currentEventId + '_' + currentBookletId + '_G' + activeGameNumber;
+        var daubedIndices = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        for (var i = 0; i < 25; i++) {
+            var cell = document.createElement('div');
+            cell.className = 'card-cell';
+            cell.dataset.index = i;
+            var songText = currentCardSongs[i] || "";
+            
+            if (i === 12 || songText.toUpperCase().includes('FREE')) {
+                cell.className += ' free-space daubed';
+                cell.innerText = 'FREE';
+            } else {
+                cell.innerText = songText;
+                if (daubedIndices.includes(i)) cell.className += ' daubed';
+                cell.onclick = function() { toggleDaub(this); };
+            }
+            gridContainer.appendChild(cell);
+        }
+    }
+
+    function toggleDaub(cellElem) {
+        var idx = parseInt(cellElem.dataset.index, 10);
+        cellElem.classList.toggle('daubed');
+        
+        var storageKey = 'BTB_DAUBS_' + currentEventId + '_' + currentBookletId + '_G' + activeGameNumber;
+        var daubedIndices = [];
+        document.querySelectorAll('.card-cell.daubed').forEach(function(c) {
+            var cIdx = parseInt(c.dataset.index, 10);
+            if (cIdx !== 12) daubedIndices.push(cIdx);
+        });
+        localStorage.setItem(storageKey, JSON.stringify(daubedIndices));
+    }
+
+    function renderMiniPattern(patternName) {
+        var miniBox = document.getElementById('mini-pattern-grid');
+        if (!miniBox) return;
+        miniBox.innerHTML = '';
+        var pat = globalCatalog.find(p => p.name === patternName);
+        var gridArray = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
+        if (pat && pat.previewGrid) gridArray = pat.previewGrid;
+        
+        for (var i = 0; i < 25; i++) {
+            var cell = document.createElement('div');
+            cell.className = 'mini-cell';
+            if (i === 12 || gridArray[i] === 1 || gridArray[i] === "1" || gridArray[i] === true) cell.className += ' active';
+            miniBox.appendChild(cell);
+        }
+    }
+
+    function handleCallBingo() {
+        var btn = document.getElementById('btn-call-bingo');
+        btn.innerText = "SENDING CLAIM..."; btn.disabled = true;
+        google.script.run.withSuccessHandler(function(res) {
+            btn.innerText = "CALL BINGO!"; btn.disabled = false;
+            alert(res.message);
+        }).withFailureHandler(function(err) {
+            btn.innerText = "CALL BINGO!"; btn.disabled = false;
+            alert("Error sending claim.");
+        }).submitVirtualBingoClaim(currentEventId, currentBookletId, activeGameNumber);
+    }
+
+    function showToast(message) {
+        var toast = document.getElementById('game-toast');
+        if (!toast) return;
+        toast.innerText = message;
+        toast.style.display = 'block';
+        setTimeout(function() { toast.style.display = 'none'; }, 3500);
+    }
+  </script>
+</body>
+</html>

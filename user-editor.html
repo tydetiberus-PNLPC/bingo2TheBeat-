@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base target="_top">
+    <title>Operator Editor</title>
+    <style>
+        <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #4a2e1b; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px; border: 2px solid #8b5a2b; border-radius: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .split-layout { display: flex; gap: 15px; }
+        .half-panel { flex: 1; }
+        .checkbox-container { display: flex; align-items: center; gap: 10px; margin-top: 10px;}
+        .checkbox-container input { width: 20px; height: 20px; }
+    </style>
+</head>
+<body class="western-app">
+
+    <main class="dashboard-viewport" style="max-width: 600px; margin: 40px auto;">
+        <section class="western-card">
+            
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="form-title" style="margin: 0;">ADD NEW OPERATOR</h2>
+                <a href="<?= ScriptApp.getService().getUrl() ?>?view=admin-panel" target="_top" class="western-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;">
+                    &larr; Back to Operators
+                </a>
+            </div>
+
+            <div class="card-body">
+                <form id="operator-form" onsubmit="handleOperatorSubmit(event)">
+                    
+                    <input type="hidden" id="is-editing" value="false">
+                    <input type="hidden" id="operatorId" value="">
+
+                    <div class="form-group">
+                        <label>Google Account Email</label>
+                        <input type="email" id="email" placeholder="e.g., djname@gmail.com" required>
+                        <small style="color: #6e5d4f;">They must log in with this exact Google account.</small>
+                    </div>
+
+                    <div class="split-layout">
+                        <div class="form-group half-panel">
+                            <label>First Name</label>
+                            <input type="text" id="firstName" required>
+                        </div>
+                        <div class="form-group half-panel">
+                            <label>Last Name</label>
+                            <input type="text" id="lastName" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>System Role</label>
+                        <!-- Updated values to lowercase to satisfy Google Sheets Data Validation -->
+                        <select id="role" required>
+                            <option value="host">Host (Can view and run events)</option>
+                            <option value="admin">Admin (Can edit operators, venues, and themes)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group checkbox-container">
+                        <input type="checkbox" id="isActive" checked>
+                        <label for="isActive" style="margin: 0; cursor: pointer;">Account is Active</label>
+                    </div>
+
+                    <div id="action-buttons" style="max-width: 70%; margin: 25px auto 0; display: flex; gap: 15px;">
+                        <a href="<?= ScriptApp.getService().getUrl() ?>?view=admin-panel" target="_top" class="western-btn" style="flex: 1; font-size: 1.1rem; background-color: #6e5d4f; color: #fff; text-decoration: none; text-align: center; padding: 10px; box-sizing: border-box;">
+                            CANCEL
+                        </a>
+                        <button type="submit" id="submit-btn" class="western-btn btn-primary" style="flex: 1; font-size: 1.1rem; padding: 10px;">
+                            SAVE OPERATOR
+                        </button>
+                    </div>
+
+                    <div id="success-actions" style="max-width: 70%; margin: 25px auto 0; display: none; text-align: center;">
+                        <a href="<?= ScriptApp.getService().getUrl() ?>?view=admin-panel" target="_top" class="western-btn btn-primary" style="display: block; width: 100%; font-size: 1.1rem; text-decoration: none; padding: 12px; box-sizing: border-box;">
+                            &larr; RETURN TO OPERATORS
+                        </a>
+                    </div>
+
+                    <div id="status-message" style="margin-top: 15px; font-weight: bold; text-align: center;"></div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof google !== 'undefined' && google.script && google.script.url) {
+                google.script.url.getLocation(function(location) {
+                    var emailParam = location.parameter ? location.parameter.email : null;
+                    
+                    if (emailParam) {
+                        document.getElementById('form-title').innerText = 'EDIT OPERATOR';
+                        document.getElementById('submit-btn').innerText = 'UPDATE OPERATOR';
+                        document.getElementById('email').readOnly = true; 
+                        document.getElementById('email').style.backgroundColor = '#d3c9be';
+                        document.getElementById('is-editing').value = 'true';
+
+                        google.script.run
+                            .withSuccessHandler(function(op) {
+                                if (op) {
+                                    document.getElementById('operatorId').value = op.operatorId || '';
+                                    document.getElementById('email').value = op.email || '';
+                                    document.getElementById('firstName').value = op.firstName || '';
+                                    document.getElementById('lastName').value = op.lastName || '';
+                                    // Normalize fetched role to lowercase to match option values
+                                    document.getElementById('role').value = (op.role || 'host').toLowerCase();
+                                    document.getElementById('isActive').checked = op.isActive;
+                                }
+                            })
+                            .withFailureHandler(function(err) {
+                                console.error("Could not fetch operator data:", err);
+                            })
+                            .getOperatorByEmail(emailParam);
+                    }
+                });
+            }
+        });
+
+        function handleOperatorSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const msg = document.getElementById('status-message');
+            const isUpdate = document.getElementById('is-editing').value === 'true';
+            
+            btn.disabled = true;
+            btn.innerText = isUpdate ? "UPDATING..." : "SAVING...";
+            msg.innerText = isUpdate ? "Updating operator profile..." : "Saving new operator...";
+            msg.style.color = "#4a2e1b";
+
+            const operatorData = {
+                operatorId: document.getElementById('operatorId').value,
+                email: document.getElementById('email').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                role: document.getElementById('role').value, // sends 'admin' or 'host'
+                isActive: document.getElementById('isActive').checked
+            };
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    msg.innerText = isUpdate ? "✅ Operator updated successfully!" : "✅ Operator saved successfully!";
+                    msg.style.color = "green";
+                    
+                    document.getElementById('action-buttons').style.display = 'none';
+                    document.getElementById('success-actions').style.display = 'block';
+                })
+                .withFailureHandler(function(error) {
+                    msg.innerText = "Error: " + error.message;
+                    msg.style.color = "red";
+                    btn.disabled = false;
+                    btn.innerText = isUpdate ? "UPDATE OPERATOR" : "SAVE OPERATOR";
+                })
+                .saveOperator(operatorData);
+        }
+    </script>
+</body>
+</html>

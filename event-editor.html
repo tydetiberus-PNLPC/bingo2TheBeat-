@@ -1,0 +1,430 @@
+<!-- File: event-editor.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title id="page-title">Event Editor | Bingo to the Beat!</title>
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 600px) { .grid-2col { grid-template-columns: 1fr; } }
+    
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand-title">
+        <h1>BINGO TO THE BEAT</h1>
+        <span class="subtitle">Event Modification Console</span>
+      </div>
+      <div>
+        <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary">← BACK TO DASHBOARD</a>
+      </div>
+    </div>
+  </header>
+  
+  <main class="dashboard-viewport" style="max-width: 700px;">
+    <section class="pro-card">
+      <div class="card-header">
+        <h2 id="form-main-title" style="color: var(--primary);">Loading...</h2>
+      </div>
+      <div class="card-body">
+        
+        <div id="test-mode-banner" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; color: #fcd34d; font-weight: 900;">
+            ⚠️ DEVELOPER TEST EVENT<br>
+            <span style="font-size: 0.8rem; font-weight: normal; color: #fde68a;">Events are permanently locked to testing defaults in this mode.</span>
+        </div>
+
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
+          Note: Assigning or changing a theme will automatically trigger random 75-song playlist generation and build fresh Bingo cards for players.
+        </p>
+        
+        <form id="editEventForm" onsubmit="handleEventSave(event)">
+          <input type="hidden" id="edit-event-id" name="eventId" value="">
+          
+          <div class="form-group">
+            <label class="form-label">EVENT NAME (OPTIONAL)</label>
+            <input type="text" id="edit-event-name" class="form-control" placeholder="e.g., Friday Night Party Bingo">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Location / Venue Name</label>
+            <select id="edit-venue" class="form-control" required>
+              <option value="">Loading locations...</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Assigned Playlist Theme</label>
+            <select id="edit-theme" class="form-control" required>
+              <option value="">Loading themes...</option>
+            </select>
+          </div>
+          
+          <div class="grid-2col">
+            <div class="form-group">
+              <label class="form-label">Event Date</label>
+              <input type="date" id="edit-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Start Time</label>
+              <input type="time" id="edit-time" class="form-control" required>
+            </div>
+          </div>
+          
+          <div class="grid-2col">
+            <div class="form-group">
+              <label class="form-label">Games to Play</label>
+              <select id="edit-games" class="form-control">
+                <option value="10">10 Games (Max Session)</option>
+                <option value="8">8 Games</option>
+                <option value="6">6 Games</option>
+                <option value="4">4 Games (Short/Demo)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expected Players</label>
+              <input type="number" id="edit-players" class="form-control" value="0">
+            </div>
+          </div>
+          
+          <div class="grid-2col">
+            <div class="form-group">
+              <label class="form-label">Digital Booklets</label>
+              <input type="number" id="edit-virtual" class="form-control" value="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Printed PDF Bundles</label>
+              <input type="number" id="edit-printed" class="form-control" value="0">
+            </div>
+          </div>
+
+          <div class="grid-2col" style="align-items: center;">
+            <div class="form-group">
+              <label class="form-label">Monthly or Weekly Repeater</label>
+              <select id="edit-repeater" class="form-control">
+                  <option value="None">None (One-time Event)</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Bi-Weekly">Bi-Weekly</option>
+                  <option value="Monthly (1st Week)">Monthly - 1st Week</option>
+                  <option value="Monthly (2nd Week)">Monthly - 2nd Week</option>
+                  <option value="Monthly (3rd Week)">Monthly - 3rd Week</option>
+                  <option value="Monthly (4th Week)">Monthly - 4th Week</option>
+                  <option value="Monthly (Last Week)">Monthly - Last Week</option>
+              </select>
+            </div>
+            <div class="form-group" style="display: flex; justify-content: flex-end;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #94a3b8; font-weight: bold; font-size: 1rem; margin-top: 15px;">
+                  <label class="switch"><input type="checkbox" id="edit-active" checked><span class="slider"></span></label> EVENT IS ACTIVE
+                </label>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Staff / Execution Notes</label>
+            <textarea id="edit-notes" class="form-control" rows="3" placeholder="Any specific notes for the host..."></textarea>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+            <div>
+              <button type="button" id="btn-delete-event" onclick="confirmDeleteEvent()" class="btn btn-danger" style="padding: 10px 20px;">🗑️ DELETE EVENT</button>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary" style="padding: 10px 20px;">CANCEL</a>
+              <button type="submit" id="btn-save-event" class="btn btn-primary" style="padding: 10px 20px;">SAVE CHANGES</button>
+            </div>
+          </div>
+          
+          <div id="save-status" style="margin-top: 15px; font-weight: bold; text-align: center; height: 20px;"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+  
+  <script>
+    var APP_BASE_URL = "<?= ScriptApp.getService().getUrl() ?>";
+    var currentEventId = null;
+    var isCreateMode = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var eId = urlParams.get('eventId');
+      if (eId) {
+        startEditor(eId);
+      } else if (typeof google !== 'undefined' && google.script && google.script.url) {
+        google.script.url.getLocation(function(location) {
+          var paramEventId = (location && location.parameter) ? location.parameter.eventId : null;
+          startEditor(paramEventId);
+        });
+      } else {
+        startEditor(null);
+      }
+    });
+
+    function startEditor(eventId) {
+      currentEventId = eventId;
+      isCreateMode = !eventId;
+      
+      if (isCreateMode) {
+        document.getElementById('page-title').innerText = "Schedule Event | Bingo to the Beat!";
+        document.getElementById('form-main-title').innerText = "Schedule New Event";
+        document.getElementById('btn-save-event').innerText = "🚀 GENERATE EVENT & BOOKLETS";
+        document.getElementById('btn-delete-event').style.display = 'none';
+        
+        var tzOffset = (new Date()).getTimezoneOffset() * 60000; 
+        var localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
+        document.getElementById('edit-date').value = localISOTime;
+      } else {
+        document.getElementById('edit-event-id').value = eventId;
+        document.getElementById('form-main-title').innerText = "Edit Scheduled Event";
+      }
+
+      initEventEditor(eventId);
+    }
+
+    function initEventEditor(eventId) {
+      var loadedVenues = false;
+      var loadedThemes = false;
+      var eventData = null;
+
+      function checkAndPopulate() {
+        if (loadedVenues && loadedThemes) {
+          if (!isCreateMode && eventData) {
+            populateFormFields(eventData);
+          } else if (isCreateMode) {
+             checkTestModeOverrides();
+          }
+        }
+      }
+
+      google.script.run.withSuccessHandler(function(locs) {
+        var select = document.getElementById('edit-venue');
+        select.innerHTML = '<option value="">-- Select Event Venue --</option>';
+        if (locs && locs.length > 0) {
+          locs.forEach(function(l) {
+            var opt = document.createElement('option');
+            opt.value = l; opt.innerText = l;
+            select.appendChild(opt);
+          });
+        }
+        loadedVenues = true;
+        checkAndPopulate();
+      }).getAvailableLocations();
+
+      google.script.run.withSuccessHandler(function(themes) {
+        var select = document.getElementById('edit-theme');
+        select.innerHTML = '<option value="">-- Select Theme --</option>';
+        if (themes && themes.length > 0) {
+          themes.forEach(function(t) {
+            var opt = document.createElement('option');
+            opt.value = t; opt.innerText = t;
+            select.appendChild(opt);
+          });
+        }
+        loadedThemes = true;
+        checkAndPopulate();
+      }).getAvailableThemes();
+
+      if (!isCreateMode) {
+        google.script.run.withSuccessHandler(function(ev) {
+          if (!ev) {
+            document.getElementById('save-status').innerText = "❌ Event ID not found.";
+            document.getElementById('save-status').style.color = "var(--danger)";
+            return;
+          }
+          eventData = ev;
+          checkAndPopulate();
+        }).getEventById(eventId);
+      }
+    }
+
+    function populateFormFields(ev) {
+      if (!ev) return;
+      
+      var evName = (ev.eventName || ev.customEventName || "").toString();
+      if (evName.includes('@') || evName.startsWith('Unassigned Event')) evName = '';
+      document.getElementById('edit-event-name').value = evName;
+      
+      if (ev.venue) document.getElementById('edit-venue').value = ev.venue;
+      if (ev.theme || ev.themeName) document.getElementById('edit-theme').value = ev.theme || ev.themeName;
+      
+      if (ev.date) {
+        try {
+          var d = new Date(ev.date);
+          if (!isNaN(d.getTime())) {
+            var yyyy = d.getFullYear();
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            document.getElementById('edit-date').value = yyyy + "-" + mm + "-" + dd;
+          } else {
+            document.getElementById('edit-date').value = String(ev.date).split('T')[0];
+          }
+        } catch(e) { document.getElementById('edit-date').value = ""; }
+      }
+      
+      if (ev.time) {
+        try {
+          var tStr = String(ev.time).trim();
+          var dTime = new Date(tStr);
+          if (!isNaN(dTime.getTime()) && tStr.includes('T')) {
+             var hh = String(dTime.getHours()).padStart(2, '0');
+             var mm = String(dTime.getMinutes()).padStart(2, '0');
+             document.getElementById('edit-time').value = hh + ":" + mm;
+          } else {
+             var match = tStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+             if (match) {
+                var h = parseInt(match[1], 10);
+                var m = match[2];
+                var ampm = match[3] ? match[3].toUpperCase() : '';
+                
+                if (ampm === 'PM' && h < 12) h += 12;
+                if (ampm === 'AM' && h === 12) h = 0;
+                
+                var hhStr = h.toString().padStart(2, '0');
+                document.getElementById('edit-time').value = hhStr + ":" + m;
+             } else {
+                document.getElementById('edit-time').value = tStr;
+             }
+          }
+        } catch(e) { document.getElementById('edit-time').value = ""; }
+      }
+      
+      document.getElementById('edit-games').value = String(ev.gameCount || 4);
+      document.getElementById('edit-players').value = (ev.expectedPlayers !== undefined) ? ev.expectedPlayers : 0;
+      document.getElementById('edit-virtual').value = (ev.virtualCount !== undefined) ? ev.virtualCount : 0;
+      document.getElementById('edit-printed').value = (ev.printedCount !== undefined) ? ev.printedCount : 0;
+      document.getElementById('edit-notes').value = ev.notes || "";
+      
+      document.getElementById('edit-repeater').value = ev.monthlyRepeater || "None";
+      document.getElementById('edit-active').checked = (ev.isActive !== false && ev.isActive !== "FALSE");
+
+      checkTestModeOverrides(ev.isTest || (currentEventId && currentEventId.startsWith('TEST_')));
+    }
+
+    function checkTestModeOverrides(isSpecificallyTestEvent) {
+       google.script.run.withSuccessHandler(function(globalTest) {
+          if (globalTest || isSpecificallyTestEvent) {
+              document.getElementById('test-mode-banner').style.display = 'block';
+              
+              var selGames = document.getElementById('edit-games');
+              var selPlayers = document.getElementById('edit-players');
+              var selVirtual = document.getElementById('edit-virtual');
+              var selPrinted = document.getElementById('edit-printed');
+              var btnSave = document.getElementById('btn-save-event');
+              
+              selGames.value = "4"; selGames.disabled = true;
+              selPlayers.value = "2"; selPlayers.disabled = true;
+              selVirtual.value = "2"; selVirtual.disabled = true;
+              selPrinted.value = "2"; selPrinted.disabled = true;
+              
+              btnSave.innerText = isCreateMode ? "LOCKED IN TEST MODE" : "EVENT LOCKED IN TEST MODE";
+              btnSave.style.backgroundColor = "#f59e0b";
+              btnSave.style.boxShadow = "0 4px 0 #d97706";
+          }
+      }).getTestMode();
+    }
+
+    function handleEventSave(e) {
+      e.preventDefault();
+      var btn = document.getElementById('btn-save-event');
+      var status = document.getElementById('save-status');
+      
+      var themeVal = document.getElementById('edit-theme').value;
+      var virtualVal = parseInt(document.getElementById('edit-virtual').value, 10) || 0;
+      var printedVal = parseInt(document.getElementById('edit-printed').value, 10) || 0;
+      var playersVal = parseInt(document.getElementById('edit-players').value, 10) || 0;
+      var gamesVal = document.getElementById('edit-games').value;
+
+      if (!themeVal) { virtualVal = 0; printedVal = 0; }
+      
+      var payload = {
+        eventId: currentEventId,
+        eventName: document.getElementById('edit-event-name').value.trim(),
+        venue: document.getElementById('edit-venue').value,
+        theme: themeVal,
+        date: document.getElementById('edit-date').value,
+        time: document.getElementById('edit-time').value,
+        gameCount: gamesVal,
+        expectedPlayers: playersVal,
+        virtualCount: virtualVal,
+        printedCount: printedVal,
+        notes: document.getElementById('edit-notes').value,
+        isActive: document.getElementById('edit-active').checked,
+        monthlyRepeater: document.getElementById('edit-repeater').value,
+        accessType: 'OPEN'
+      };
+      
+      if (document.getElementById('edit-games').disabled) {
+          payload.gameCount = 4;
+          payload.expectedPlayers = 2;
+          payload.virtualCount = 2;
+          payload.printedCount = 2;
+      }
+      
+      btn.disabled = true; 
+      btn.innerText = isCreateMode ? "GENERATING..." : "SAVING...";
+      status.innerText = "Processing...";
+      status.style.color = "var(--text-muted)";
+      
+      if (isCreateMode) {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              btn.disabled = false; btn.innerText = "ROCK ON!";
+              status.innerText = "✅ Event scheduled and booklets generated!";
+              status.style.color = "var(--accent)";
+              setTimeout(function() { window.open(APP_BASE_URL + "?view=index", "_top"); }, 1500);
+            })
+            .withFailureHandler(function(err) {
+              btn.disabled = false; btn.innerText = "🚀 GENERATE EVENT & BOOKLETS";
+              status.innerText = "❌ Error: " + err.message;
+              status.style.color = "var(--danger)";
+            })
+            .adminScheduleNewEvent(payload);
+      } else {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              btn.disabled = false; btn.innerText = "SAVE CHANGES";
+              status.innerText = "✅ Event updated successfully!";
+              status.style.color = "var(--accent)";
+              setTimeout(function() { window.open(APP_BASE_URL + "?view=index", "_top"); }, 1000);
+            })
+            .withFailureHandler(function(err) {
+              btn.disabled = false; btn.innerText = "SAVE CHANGES";
+              status.innerText = "❌ Error: " + err.message;
+              status.style.color = "var(--danger)";
+            })
+            .saveOrUpdateEvent(payload);
+      }
+    }
+
+    function confirmDeleteEvent() {
+      if (!currentEventId || isCreateMode) return;
+      if (confirm("⚠️ ARE YOU SURE YOU WANT TO DELETE THIS EVENT?")) {
+        var btn = document.getElementById('btn-delete-event');
+        btn.innerText = "DELETING...";
+        btn.disabled = true;
+        
+        google.script.run
+          .withSuccessHandler(function() {
+            window.open(APP_BASE_URL + "?view=index", "_top");
+          })
+          .withFailureHandler(function(err) {
+            alert("Error deleting event: " + err.message);
+            btn.innerText = "🗑️ DELETE EVENT";
+            btn.disabled = false;
+          })
+          .deleteEventById(currentEventId);
+      }
+    }
+  </script>
+</body>
+</html>

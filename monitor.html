@@ -1,0 +1,282 @@
+<!-- File: monitor.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title>Live Audience Display | Bingo to the Beat</title>
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+    
+    body.monitor-body {
+        background-color: #020617; 
+        color: #fdf8f0;
+        margin: 0; padding: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+    }
+
+    /* HEADER */
+    .monitor-header {
+        background: #0f172a;
+        border-bottom: 4px solid #334155;
+        padding: 20px 40px;
+        display: flex; justify-content: space-between; align-items: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 10;
+    }
+    .monitor-header h1 { margin: 0; font-size: 2.5rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+    .monitor-header h2 { margin: 0; font-size: 1.5rem; color: #94a3b8; }
+
+    /* MAIN CONTENT GRID */
+    .monitor-main {
+        flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+        padding: 40px; box-sizing: border-box;
+    }
+
+    /* LEFT PANEL: NOW PLAYING */
+    .panel-playing {
+        background: rgba(15, 23, 42, 0.6); border: 3px solid #334155; border-radius: 15px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 40px; text-align: center; position: relative;
+    }
+    
+    /* BINGO LETTER BADGE */
+    .bingo-letter-badge {
+        position: absolute; top: -30px; left: -30px;
+        width: 100px; height: 100px; background: #ef4444; color: #ffffff; border: 6px solid #b91c1c;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 4rem; font-weight: 900; box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+        transform: rotate(-10deg);
+    }
+
+    .album-art {
+        width: 320px; height: 320px; border: 6px solid #38bdf8; border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8); object-fit: cover; margin-bottom: 30px; background: #000;
+    }
+    .track-title { font-size: 3.5rem; font-weight: 900; margin: 0 0 10px 0; color: #ffffff; line-height: 1.1; }
+    .track-artist { font-size: 2.2rem; font-weight: bold; margin: 0; color: #38bdf8; }
+
+    /* RIGHT PANEL: PATTERN & QR */
+    .panel-info { display: flex; flex-direction: column; gap: 20px; justify-content: center; }
+    .info-card {
+        background: rgba(15, 23, 42, 0.6); border: 3px solid #334155; border-radius: 15px;
+        padding: 30px; display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .pattern-title { font-size: 2rem; font-weight: 900; color: #ef4444; margin: 0 0 5px 0; }
+    .pattern-diff { font-size: 1.2rem; font-weight: bold; color: #f59e0b; text-transform: uppercase; margin-bottom: 10px; }
+    
+    .monitor-pattern-grid {
+        width: 180px; height: 180px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+        gap: 3px; background: #334155; padding: 4px; border-radius: 8px;
+    }
+    .pattern-cell { background: #ffffff; border-radius: 2px; }
+    .pattern-cell.active { background: #ef4444; }
+
+    .qr-container { background: #ffffff; padding: 15px; border-radius: 10px; border: 4px solid #38bdf8; }
+    .qr-container img { display: block; width: 160px; height: 160px; }
+
+    /* FOOTER STATUS BAR */
+    .monitor-footer {
+        background: #0f172a; border-top: 4px solid #334155; padding: 15px 40px;
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 1.8rem; font-weight: bold; color: #94a3b8;
+    }
+    
+    .status-badge {
+        background: #ef4444; color: #fff; padding: 8px 25px; border-radius: 30px;
+        font-weight: 900; text-transform: uppercase; letter-spacing: 2px;
+    }
+
+    @keyframes flash-status {
+        0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; }
+    }
+    .flash-animate { animation: flash-status 1.5s infinite; }
+  </style>
+</head>
+<body class="monitor-body">
+
+  <header class="monitor-header">
+    <div>
+      <h2 style="font-size:1.2rem; color:#38bdf8; margin-bottom: 5px;">TONIGHT'S EVENT</h2>
+      <h1 id="monitor-theme-name">LOADING THEME...</h1>
+    </div>
+    <h2 id="monitor-venue-name">Bingo to the Beat</h2>
+  </header>
+
+  <main class="monitor-main">
+    <!-- LEFT: NOW PLAYING -->
+    <div class="panel-playing">
+      <div id="monitor-bingo-letter" class="bingo-letter-badge" style="display: none;">?</div>
+      <h3 style="font-size:1.5rem; color:#94a3b8; text-transform:uppercase; margin-top:0;">Now Playing</h3>
+      <img id="monitor-album-art" class="album-art" src="">
+      <div id="monitor-track-title" class="track-title">Waiting to start...</div>
+      <div id="monitor-track-artist" class="track-artist">--</div>
+    </div>
+
+    <!-- RIGHT: PATTERN & QR CODE -->
+    <div class="panel-info">
+      <div class="info-card">
+        <div>
+          <h3 style="font-size:1.2rem; color:#94a3b8; text-transform:uppercase; margin:0 0 5px 0;">Target Pattern</h3>
+          <div id="monitor-pattern-name" class="pattern-title">Loading...</div>
+          <div id="monitor-pattern-diff" class="pattern-diff">Level: --</div>
+          <div style="font-size: 1.2rem; color: #f8fafc;">Match this on your card to win!</div>
+        </div>
+        <div id="monitor-animated-grid" class="monitor-pattern-grid"></div>
+      </div>
+
+      <div class="info-card" style="background: rgba(56, 189, 248, 0.1); border-color: #38bdf8;">
+        <div>
+          <h3 style="font-size:1.8rem; color:#38bdf8; margin:0 0 10px 0;">PLAY ALONG!</h3>
+          <div style="font-size: 1.3rem; color: #ffffff; line-height: 1.4;">
+            Scan the QR code with your phone camera to get your virtual bingo booklet.
+          </div>
+        </div>
+        <div class="qr-container">
+          <img id="monitor-qr-code" src="" alt="QR Code">
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="monitor-footer">
+    <div>GAME #<span id="monitor-game-num" style="color:#ffffff;">1</span> OF <span id="monitor-max-games" style="color:#ffffff;">4</span></div>
+    <div id="monitor-status" class="status-badge">READY TO START</div>
+  </footer>
+
+  <script>
+    var currentEventId = "<?= eventId ?>" || "EVT_017046";
+    var appUrl = "<?= ScriptApp.getService().getUrl() ?>";
+    var globalCatalog = [];
+    var currentRenderedPattern = "";
+    var animationInterval = null;
+    
+    var fallbackAlbumArt = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Crect width='320' height='320' fill='%231e293b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%2394a3b8'%3EMUSIC BINGO%3C/text%3E%3C/svg%3E";
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('monitor-album-art').src = fallbackAlbumArt;
+      
+      var joinUrl = appUrl + "?view=card&eventId=" + encodeURIComponent(currentEventId);
+      document.getElementById('monitor-qr-code').src = "https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=" + encodeURIComponent(joinUrl);
+      
+      google.script.run.withSuccessHandler(function(catalog) {
+        globalCatalog = catalog || [];
+        pollBackend();
+        setInterval(pollBackend, 2500); 
+      }).getPatternCatalog();
+    });
+
+    function pollBackend() {
+      google.script.run.withSuccessHandler(updateDisplay).getLiveGameState(currentEventId);
+    }
+
+    function updateDisplay(state) {
+      if (!state) return;
+
+      if (state.themeName) document.getElementById('monitor-theme-name').innerText = state.themeName;
+      if (state.locationName) document.getElementById('monitor-venue-name').innerText = state.locationName;
+      
+      document.getElementById('monitor-game-num').innerText = state.currentGameNumber || 1;
+      document.getElementById('monitor-max-games').innerText = state.effectiveGames || 4;
+
+      var statusBadge = document.getElementById('monitor-status');
+      statusBadge.classList.remove('flash-animate');
+      
+      if (state.status === 'PLAYING') {
+          statusBadge.innerText = "NOW PLAYING";
+          statusBadge.style.background = "#10b981";
+      } else if (state.status === 'PAUSED') {
+          statusBadge.innerText = "INTERMISSION";
+          statusBadge.style.background = "#f59e0b";
+      } else if (state.status === 'STOPPED') {
+          statusBadge.innerText = "GAME STOPPED";
+          statusBadge.style.background = "#ef4444";
+          statusBadge.classList.add('flash-animate');
+      } else {
+          statusBadge.innerText = "WAITING FOR DJ";
+          statusBadge.style.background = "#475569";
+      }
+
+      var letterBadge = document.getElementById('monitor-bingo-letter');
+      if (state.currentTrack) {
+          document.getElementById('monitor-track-title').innerText = state.currentTrack.title || "Ready to Start...";
+          document.getElementById('monitor-track-artist').innerText = state.currentTrack.artist || "--";
+          
+          if (state.currentTrack.bingoLetter) {
+              letterBadge.innerText = state.currentTrack.bingoLetter;
+              letterBadge.style.display = 'flex';
+          } else {
+              letterBadge.style.display = 'none';
+          }
+          
+          var cover = document.getElementById('monitor-album-art');
+          if (state.allowAlbumArt && state.currentTrack.albumArtUrl) {
+              if (cover.src !== state.currentTrack.albumArtUrl) {
+                  cover.src = state.currentTrack.albumArtUrl;
+                  cover.onerror = function() { this.src = fallbackAlbumArt; this.onerror = null; };
+              }
+          } else {
+              if (cover.src !== fallbackAlbumArt) cover.src = fallbackAlbumArt;
+          }
+      } else {
+          letterBadge.style.display = 'none';
+      }
+
+      var activePat = state.activePattern || "Standard Bingo (Any Line)";
+      var diffStr = state.patternSchedule && state.patternSchedule[state.currentGameNumber - 1] ? state.patternSchedule[state.currentGameNumber - 1].difficulty : "Unknown";
+      
+      document.getElementById('monitor-pattern-name').innerText = activePat;
+      document.getElementById('monitor-pattern-diff').innerText = "Level: " + diffStr;
+      
+      renderAnimatedPattern(activePat);
+    }
+
+    function renderAnimatedPattern(patternName) {
+      if (currentRenderedPattern === patternName) return;
+      currentRenderedPattern = patternName;
+      clearInterval(animationInterval);
+      
+      var box = document.getElementById('monitor-animated-grid');
+      if (!box) return;
+      var pat = globalCatalog.find(p => p.name === patternName);
+      var variations = [];
+      try {
+        if (pat && pat.rawJson) {
+          variations = JSON.parse(pat.rawJson);
+          if (!Array.isArray(variations[0])) variations = [variations];
+        } else if (pat && pat.previewGrid) {
+          variations = [pat.previewGrid];
+        } else {
+          variations = [[1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1]];
+        }
+      } catch(e) {
+        variations = [[1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1]];
+      }
+
+      let vIndex = 0;
+      function drawFrame() {
+        var gridArray = variations[vIndex];
+        box.innerHTML = '';
+        for (var i = 0; i < 25; i++) {
+          var cell = document.createElement('div');
+          cell.className = 'pattern-cell';
+          if (i === 12) {
+            cell.style.background = '#334155';
+          } else if (gridArray[i] === 1 || gridArray[i] === "1" || gridArray[i] === true) {
+            cell.className += ' active';
+          }
+          box.appendChild(cell);
+        }
+        vIndex = (vIndex + 1) % variations.length;
+      }
+      
+      drawFrame();
+      if (variations.length > 1) {
+        animationInterval = setInterval(drawFrame, 1200);
+      }
+    }
+  </script>
+</body>
+</html>

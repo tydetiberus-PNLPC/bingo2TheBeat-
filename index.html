@@ -1,0 +1,329 @@
+<!-- File: index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Console | Bingo to the Beat</title>
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+    
+    body { background-color: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; }
+    
+    .dashboard-viewport { max-width: 1300px; margin: 0 auto; }
+    
+    .app-header { border-bottom: 2px solid #334155; padding-bottom: 15px; margin-bottom: 25px; }
+    .header-content { display: flex; justify-content: space-between; align-items: center; }
+    .brand-title h1 { margin: 0; color: #38bdf8; font-size: 1.8rem; text-transform: uppercase; letter-spacing: 1px; }
+    .brand-title .subtitle { color: #94a3b8; font-size: 0.85rem; font-weight: 600; }
+
+    .tactile-btn {
+        background-color: #3b82f6; color: white; font-weight: 900; font-size: 0.85rem; text-transform: uppercase;
+        padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 5px 0 #2563eb, 0 8px 10px rgba(0,0,0,0.2);
+        transition: all 0.1s ease; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; gap: 6px;
+    }
+    .tactile-btn:active { box-shadow: 0 0 0 #2563eb, 0 4px 6px rgba(0,0,0,0.2); transform: translateY(5px); }
+    .btn-danger { background-color: #ef4444; box-shadow: 0 5px 0 #dc2626; }
+    .btn-danger:active { box-shadow: 0 0 0 #dc2626; transform: translateY(5px); }
+    .btn-secondary { background-color: #475569; box-shadow: 0 5px 0 #334155; }
+    .btn-secondary:active { box-shadow: 0 0 0 #334155; transform: translateY(5px); }
+    .btn-warning { background-color: #f59e0b; box-shadow: 0 5px 0 #d97706; }
+    .btn-warning:active { box-shadow: 0 0 0 #d97706; transform: translateY(5px); }
+    .btn-neon { background-color: #10b981; box-shadow: 0 5px 0 #059669; }
+    .btn-neon:active { box-shadow: 0 0 0 #059669; transform: translateY(5px); }
+    .btn-success { background-color: #10b981; box-shadow: 0 4px 0 #059669; }
+    .btn-success:active { box-shadow: 0 0 0 #059669; transform: translateY(4px); }
+
+    .pro-card { background: #0f172a; border: 2px solid #334155; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 25px; overflow: hidden; }
+    .card-header { background: #1e293b; padding: 15px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: flex-start; }
+    .card-header h2 { margin: 0; color: #f8fafc; font-size: 1.2rem; }
+
+    table.pro-table { width: 100%; border-collapse: collapse; color: #e2e8f0; }
+    table.pro-table th { background: #1e293b; color: #94a3b8; padding: 12px 16px; text-align: left; font-size: 0.8rem; text-transform: uppercase; position: sticky; top: 0; z-index: 1; }
+    table.pro-table td { padding: 12px 16px; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+    table.pro-table tr:last-child td { border-bottom: none; }
+
+    .scrollable-card-body { max-height: 185px; overflow-y: auto; padding-right: 4px; }
+    .scrollable-card-body::-webkit-scrollbar { width: 6px; }
+    .scrollable-card-body::-webkit-scrollbar-track { background: var(--bg-input, #0f172a); border-radius: 8px; }
+    .scrollable-card-body::-webkit-scrollbar-thumb { background: var(--border-color, #334155); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); }
+    .scrollable-card-body::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+    
+    .badge-test { background-color: #8b5cf6; color: #ffffff; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-right: 6px; vertical-align: middle; box-shadow: 0 0 8px rgba(139, 92, 246, 0.5); }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-viewport">
+    <header class="app-header">
+      <div class="header-content">
+        <div class="brand-title">
+          <h1>BINGO TO THE BEAT</h1>
+          <span class="subtitle">Live Music Bingo Host Console</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="text-align: right; margin-right: 10px;">
+            <span style="display:block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: bold;">Operator Logged In</span>
+            <span style="font-size: 0.85rem; font-weight: 600; color: #f8fafc;"><?= userEmail ?></span>
+          </div>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?view=admin-panel" target="_top" class="tactile-btn btn-secondary">Admin</a>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?view=logout" target="_top" class="tactile-btn btn-danger">Logout</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="pro-card">
+        <div class="card-header" style="align-items: center;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+              <h2>Upcoming Events</h2>
+              <a href="<?= ScriptApp.getService().getUrl() ?>?view=demo" target="_blank" class="tactile-btn btn-secondary" style="padding: 4px 10px; font-size: 0.65rem; box-shadow: 0 3px 0 #334155; text-transform: none;">Demo</a>
+            </div>
+            <span style="font-size: 0.8rem; color: #94a3b8;">Click a date to edit event settings</span>
+          </div>
+          <div>
+            <!-- SLIMMED DOWN NEW BUTTON -->
+            <a href="<?= ScriptApp.getService().getUrl() ?>?view=event-editor" target="_top" class="tactile-btn btn-success" style="padding: 4px 12px; font-size: 0.7rem; box-shadow: 0 3px 0 #059669;">NEW</a>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <div class="scrollable-card-body" style="max-height: 250px; overflow-x: auto;">
+            <table class="pro-table">
+              <thead>
+                <tr>
+                  <th>Date / Time</th>
+                  <th>Event Name</th>
+                  <th>Location</th>
+                  <th>Theme</th>
+                  <th style="text-align: center;">Games</th>
+                  <th style="text-align: center;">Players</th>
+                  <th style="text-align: center;">Cards</th>
+                  <th style="text-align: right; padding-right: 24px;">Console</th>
+                </tr>
+              </thead>
+              <tbody id="event-list-body">
+                <tr><td colspan="8" style="text-align:center; padding:30px; color:#94a3b8;">Loading scheduled events...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 24px;">
+        <section class="pro-card" style="margin: 0;">
+          <div class="card-header" style="align-items: center;">
+            <div>
+              <h2>Themed Playlists</h2>
+              <span style="font-size: 0.8rem; color: #94a3b8;">Click a theme to manage</span>
+            </div>
+            <!-- SLIMMED DOWN NEW BUTTON -->
+            <a href="<?= ScriptApp.getService().getUrl() ?>?view=theme-editor" target="_top" class="tactile-btn btn-success" style="padding: 4px 12px; font-size: 0.7rem; box-shadow: 0 3px 0 #059669;">NEW</a>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="scrollable-card-body">
+              <table class="pro-table">
+                <thead>
+                  <tr>
+                    <th>Theme</th>
+                    <th>Description</th>
+                    <th style="text-align: center;">Tracks</th>
+                    <th style="text-align: center;">Format</th>
+                  </tr>
+                </thead>
+                <tbody id="theme-list-body">
+                  <tr><td colspan="4" style="text-align:center; padding:30px; color:#94a3b8;">Loading themes...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="pro-card" style="margin: 0;">
+          <div class="card-header" style="align-items: center;">
+            <div>
+              <h2>Active Venues</h2>
+            </div>
+            <!-- SLIMMED DOWN NEW BUTTON -->
+            <a href="<?= ScriptApp.getService().getUrl() ?>?view=location-editor" target="_top" class="tactile-btn btn-success" style="padding: 4px 12px; font-size: 0.7rem; box-shadow: 0 3px 0 #059669;">NEW</a>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="scrollable-card-body">
+              <table class="pro-table">
+                <thead>
+                  <tr>
+                    <th>Venue Name</th>
+                    <th>City</th>
+                    <th style="text-align: right; padding-right: 24px;">Maps</th>
+                  </tr>
+                </thead>
+                <tbody id="location-list-body">
+                  <tr><td colspan="3" style="text-align:center; padding:30px; color:#94a3b8;">Loading locations...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    var APP_BASE_URL = "<?= ScriptApp.getService().getUrl() ?>";
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadDashboardData);
+    } else {
+      loadDashboardData();
+    }
+
+    function loadDashboardData() {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(renderLocationsTable).withFailureHandler(function(err) {
+          displayTableError('location-list-body', 'Failed to retrieve active venues.');
+        }).getLocations();
+
+        google.script.run.withSuccessHandler(renderThemesTable).withFailureHandler(function(err) {
+          displayTableError('theme-list-body', 'Failed to retrieve active playlists.');
+        }).getThemes();
+
+        google.script.run.withSuccessHandler(renderEventsTable).withFailureHandler(function(err) {
+          displayTableError('event-list-body', 'Failed to retrieve scheduled events.');
+        }).getEvents();
+      }
+    }
+
+    function renderLocationsTable(locations) {
+      var tbody = document.getElementById('location-list-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!locations || locations.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#94a3b8;">No venues found.</td></tr>';
+        return;
+      }
+      locations.forEach(function(loc) {
+        var row = document.createElement('tr');
+        var id = loc.locationId || loc.id || '';
+        var editUrl = APP_BASE_URL + '?view=location-editor&locationId=' + encodeURIComponent(id);
+        var mapUrl = loc.googleMapsUrl || '';
+        var mapBtn = mapUrl ? '<a href="' + escapeHtml(mapUrl) + '" target="_blank" class="tactile-btn btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; box-shadow: 0 3px 0 #334155;">Map</a>' : '<span style="color:#64748b; font-size:0.8rem; font-style:italic;">No Map Link</span>';
+        
+        row.innerHTML = 
+          '<td style="font-weight: 600;"><a href="' + editUrl + '" target="_top">' + escapeHtml(loc.businessName || loc.locationName || 'Unknown Venue') + '</a></td>' +
+          '<td>' + escapeHtml(loc.city || 'N/A') + '</td>' +
+          '<td style="text-align: right; padding-right: 24px;">' + mapBtn + '</td>';
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderThemesTable(themes) {
+      var tbody = document.getElementById('theme-list-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!themes || themes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:#94a3b8;">No playlists found.</td></tr>';
+        return;
+      }
+      themes.forEach(function(theme) {
+        var row = document.createElement('tr');
+        var id = theme.themeId || theme.id || theme.ThemeID || theme.ID || '';
+        var editUrl = APP_BASE_URL + '?view=theme-editor&themeId=' + encodeURIComponent(id);
+        row.innerHTML = 
+          '<td style="font-weight: 600; white-space: nowrap;"><a href="' + editUrl + '" target="_top">' + escapeHtml(theme.themeName || theme.name) + '</a></td>' +
+          '<td style="color: #94a3b8; font-size: 0.85rem;" title="' + escapeHtml(theme.shortDescription || '') + '">' + escapeHtml(theme.shortDescription || '') + '</td>' +
+          '<td style="text-align: center; font-weight: 700;">' + (theme.trackCount || theme.tracks || 0) + '</td>' +
+          '<td style="text-align: center;"><span style="background: #1e293b; border: 1px solid #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: #38bdf8;">' + escapeHtml(theme.mediaType || 'Audio') + '</span></td>';
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderEventsTable(events) {
+      var tbody = document.getElementById('event-list-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!events || events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#94a3b8;">No upcoming games scheduled.</td></tr>';
+        return;
+      }
+      events.forEach(function(evt) {
+        var row = document.createElement('tr');
+        var editUrl = APP_BASE_URL + '?view=event-editor&eventId=' + encodeURIComponent(evt.eventId);
+        var djUrl = APP_BASE_URL + '?view=dj&eventId=' + encodeURIComponent(evt.eventId);
+        
+        var dateTimeDisplay = (evt.eventDate || evt.date || '') + (evt.startTime || evt.time ? (' @ ' + (evt.startTime || evt.time)) : '');
+        if (!dateTimeDisplay.trim() || dateTimeDisplay === '@') dateTimeDisplay = 'Unscheduled';
+        
+        var isTestEvent = evt.isTest || String(evt.eventId).startsWith("TEST_");
+        var testBadge = isTestEvent ? '<span class="badge-test">TEST</span>' : '';
+        
+        var customEventName = (evt.customEventName || evt.eventName || '').trim();
+        var vCount = parseInt(evt.virtualCount) || 0;
+        var pCount = parseInt(evt.printedCount) || 0;
+        var totalPlayers = parseInt(evt.expectedPlayers) || (vCount + pCount);
+        
+        var pdfControls = "";
+        if (pCount > 0) {
+          var isAlreadyPrinted = evt.isPrinted || evt.printed || evt.status === 'PRINTED' || evt.cardsPrinted;
+          var printStatusBadge = isAlreadyPrinted 
+            ? '<span style="font-size: 0.7rem; background-color: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">PRINTED</span>'
+            : '';
+          
+          pdfControls = 
+            `<div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px;">
+              ${printStatusBadge}
+              <button type="button" id="print-btn-${escapeHtml(evt.eventId)}" onclick="printEventCards('${escapeHtml(evt.eventId)}')" class="tactile-btn btn-warning" style="padding: 4px 8px; font-size: 0.7rem; box-shadow: 0 3px 0 #d97706;">PRINT PDF</button>
+            </div>`;
+        }
+
+        row.innerHTML = 
+          '<td style="font-weight: 600; white-space: nowrap;">' + testBadge + '<a href="' + editUrl + '" target="_top">' + escapeHtml(dateTimeDisplay) + '</a></td>' +
+          '<td style="font-weight: 600; color: #f8fafc;">' + escapeHtml(customEventName) + '</td>' +
+          '<td>' + escapeHtml(evt.locationName || evt.locationId || evt.venue) + '</td>' +
+          '<td>' + escapeHtml(evt.themeName || evt.themeId || evt.theme) + '</td>' +
+          '<td style="text-align: center;">' + (evt.requestedGames || evt.gameCount || 4) + '</td>' +
+          '<td style="text-align: center; font-weight: bold;">' + totalPlayers + '</td>' +
+          '<td style="text-align: center; white-space: nowrap;">' +
+            '<div style="font-size: 0.85rem; font-weight: bold; color: #f8fafc;">' + vCount + ' Digital | ' + pCount + ' PDF</div>' +
+            pdfControls +
+          '</td>' +
+          '<td style="text-align: right; padding-right: 24px; white-space: nowrap;">' +
+            '<a href="' + djUrl + '" target="_top" class="tactile-btn btn-neon" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;">LAUNCH DJ</a>' +
+          '</td>';
+        tbody.appendChild(row);
+      });
+    }
+
+    function printEventCards(eventId) {
+      var btn = document.getElementById('print-btn-' + eventId);
+      if (btn) { btn.disabled = true; btn.innerText = 'GENERATING...'; }
+      
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function(result) {
+          if (result && result.success === false) {
+            alert("Error generating cards: " + (result.error || "Unknown Error"));
+            if (btn) { btn.innerText = 'PRINT PDF'; btn.disabled = false; }
+            return;
+          }
+          var printUrl = APP_BASE_URL + '?view=print-preview&eventId=' + encodeURIComponent(eventId);
+          window.open(printUrl, '_blank');
+          loadDashboardData();
+        }).withFailureHandler(function(err) {
+          alert("Failed to generate and print cards: " + (err.message || err));
+          if (btn) { btn.innerText = 'PRINT PDF'; btn.disabled = false; }
+        }).generateAndPrintCardsForEvent(eventId, null);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function displayTableError(elementId, message) {
+      var tbody = document.getElementById(elementId);
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#ef4444;">' + escapeHtml(message) + '</td></tr>';
+      }
+    }
+  </script>
+</body>
+</html>

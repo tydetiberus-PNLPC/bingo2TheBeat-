@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f4e9d8;
+            color: #403a34;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .no-print-zone {
+            background-color: #8b5a2b;
+            color: #f4e9d8;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .print-btn {
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .print-btn:hover { background-color: #1b5e20; }
+        .loading-screen { text-align: center; padding: 50px; font-style: italic; font-size: 1.2rem; }
+
+        .preview-summary-container {
+            background: #fffdf9;
+            border: 2px solid #8b5a2b;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto 30px auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        h3 { margin-top: 0; margin-bottom: 5px; color: #8b5a2b; font-size: 1rem; }
+
+        .cards-output-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .bingo-card {
+            background: white;
+            border: 4px double #403a34;
+            width: 100%;
+            max-width: 750px;
+            box-sizing: border-box;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 2px dashed #8b5a2b;
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            margin: 0;
+            font-size: 1.8rem;
+            letter-spacing: 3px;
+            color: #403a34;
+            font-weight: bold;
+        }
+
+        .card-subtitle { margin: 5px 0 0 0; font-size: 0.85rem; color: #706961; }
+        .bingo-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+        .bingo-letter-header {
+            border: 2px solid #403a34;
+            background-color: #fdf8f0;
+            font-size: 1.6rem;
+            font-weight: bold;
+            padding: 10px 0;
+            color: #8b5a2b;
+            text-align: center;
+        }
+
+        /* Enforces strong, solid black formatting for card data cells */
+        .bingo-cell {
+            border: 2px solid #403a34;
+            height: 102px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #000000 !important; 
+            padding: 6px;
+            word-wrap: break-word;
+            overflow: hidden;
+            background-color: #fff;
+        }
+
+        .free-space-cell {
+            background-color: #fdf2e2;
+            color: #5a1010 !important;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            font-weight: 900;
+            border: 3px dashed #8b5a2b;
+        }
+
+        @media print {
+            body { background: white; padding: 0; color: #000; }
+            .no-print-zone, .preview-summary-container { display: none !important; }
+            .bingo-card {
+                box-shadow: none !important;
+                border: 4px double #000 !important;
+                padding: 0 !important;
+                margin: 0 auto !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+            }
+            .bingo-cell { 
+                height: 118px !important; 
+                background-color: #fff !important; 
+                color: #000000 !important;
+            }
+            .free-space-cell { background-color: #fff !important; color: #5a1010 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-zone" id="control-bar">
+        <div>
+            <strong style="font-size: 1.2rem;">🖨️ Bingo Card Print Engine Preview</strong>
+            <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 3px;">Review randomized track sets below before running printing output.</div>
+        </div>
+        <button class="print-btn" onclick="window.print()">🖨️ PRINT ALL CARDS</button>
+        <button type="button" onclick="window.top.close(); window.close();" style="background-color: #8b2b2b; color: white; padding: 10px 20px; border: 2px solid #5a1010; border-radius: 4px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+    ✖ CLOSE WINDOW
+</button>
+    </div>
+
+    <div id="loader" class="loading-screen">
+        Extracting soundtrack arrays and compiling randomized card grids...
+    </div>
+
+    <div id="preview-summary-panel" class="preview-summary-container" style="display: none;">
+        <div class="meta-grid">
+            <div>
+                <h3>📍 Venue Profile</h3>
+                <div id="out-location" style="font-weight: bold; font-size: 1.1rem;">-</div>
+            </div>
+            <div>
+                <h3>🎶 Playlist Theme</h3>
+                <div id="out-theme" style="font-weight: bold; font-size: 1.1rem;">-</div>
+            </div>
+            <div>
+                <h3>📅 Production Timeline</h3>
+                <div id="out-date">-</div>
+            </div>
+            <div>
+                <h3>🔢 Print Target Load</h3>
+                <div id="out-specs" style="font-weight: bold; color: #2e7d32;">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cards-output-target" class="cards-output-wrapper"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof google !== 'undefined' && google.script && google.script.url) {
+                google.script.url.getLocation(function(location) {
+                    var eventId = location.parameter.eventId;
+                    if (!eventId) {
+                        document.getElementById('loader').innerHTML = "❌ Error: No valid Event ID context found in the browser address bar.";
+                        return;
+                    }
+                    google.script.run
+                        .withSuccessHandler(generateBingoSheets)
+                        .withFailureHandler(function(err) {
+                            document.getElementById('loader').innerHTML = "❌ Critical error during data fetch stream: " + err;
+                        })
+                        .getEventById(eventId);
+                });
+            } else {
+                document.getElementById('loader').innerHTML = "❌ Critical Runtime Error: Google Script execution environment is inaccessible.";
+            }
+        });
+
+        /**
+         * Cleans track strings by removing 11-character alphanumeric tokens 
+         * and stripping gray-faded formatting layout tags.
+         */
+        function cleanTrackText(rawText) {
+            if (!rawText) return '';
+            
+            // 1. If it contains a breakdown span format from the backend, extract the text contents inside it
+            if (rawText.includes('<br>') || rawText.includes('<span')) {
+                var parts = rawText.split(/<br\s*\/?>/i);
+                if (parts.length > 1) {
+                    var innerText = parts[1].replace(/<\/?[^>]+(>|$)/g, "").trim();
+                    if (innerText) return innerText;
+                }
+            }
+            
+            // 2. Fallback filter: Remove standalone 11-character YouTube hash strings safely
+            var words = rawText.split(/\s+/);
+            var cleanWords = words.filter(function(word) {
+                var isYouTubeId = /^[a-zA-Z0-9_-]{11}$/.test(word);
+                return !isYouTubeId;
+            });
+            
+            var result = cleanWords.join(' ').trim();
+            return result.replace(/^[\s\-–—]+|[\s\-–—]+$/g, '') || rawText;
+        }
+
+        function generateBingoSheets(event) {
+            if (!event) {
+                document.getElementById('loader').innerHTML = "❌ Error: Requested event data profile was empty or could not be found.";
+                return;
+            }
+            
+            var trackPool = event.tracks || [];
+            if (trackPool.length < 24) {
+                document.getElementById('loader').innerHTML = 
+                    "<div style='color:#c62828; text-align:center; padding:30px; border:2px dashed #c62828; background:rgba(198,40,40,0.05);'>" +
+                    "<h3>❌ Cannot Generate Cards</h3>" +
+                    "<p>The selected playlist theme (<strong>" + event.themeName + "</strong>) only has " + trackPool.length + " tracks recorded.</p>" +
+                    "<p>Please log at least <strong>24 unique songs</strong> in your spreadsheet database to fill out a 5x5 matrix grid!</p>" +
+                    "</div>";
+                return;
+            }
+            
+            document.getElementById('out-location').innerText = event.locationName || event.locationId;
+            document.getElementById('out-theme').innerText = event.themeName;
+            document.getElementById('out-date').innerText = (event.eventDate || 'Unscheduled') + ' @ ' + (event.startTime || '');
+            document.getElementById('out-specs').innerText = (event.requestedGames || 0) + ' Games | ' + (event.printCount || 100) + ' Total Sheets';
+            
+            var totalCardsToPrint = parseInt(event.printCount, 10) || 50;
+            var targetWrapper = document.getElementById('cards-output-target');
+            targetWrapper.innerHTML = ''; 
+            
+            for (var cardNum = 1; cardNum <= totalCardsToPrint; cardNum++) {
+                var shuffledSongs = shuffleArray(trackPool.slice(0));
+                var cellIndex = 0;
+                
+                var cardBox = document.createElement('div');
+                cardBox.className = 'bingo-card';
+                
+                var cardHeaderHtml = 
+                    '<div class="card-header">' +
+                        '<div class="card-title">BINGO TO THE BEAT</div>' +
+                        '<div class="card-subtitle">' + escapeHtml(event.themeName) + ' • Card #' + cardNum + ' of ' + totalCardsToPrint + '</div>' +
+                    '</div>';
+                
+                var tableHtml = '<table class="bingo-table"><thead><tr>';
+                var letters = ['B', 'I', 'N', 'G', 'O'];
+                for (var l = 0; l < 5; l++) {
+                    tableHtml += '<th class="bingo-letter-header">' + letters[l] + '</th>';
+                }
+                tableHtml += '</tr></thead><tbody>';
+                
+                for (var row = 0; row < 5; row++) {
+                    tableHtml += '<tr>';
+                    for (var col = 0; col < 5; col++) {
+                        if (row === 2 && col === 2) {
+                            tableHtml += '<td class="bingo-cell free-space-cell">🎵<br>FREE<br>SPACE</td>';
+                        } else {
+                            // Cleans the text string to pure black text titles before drawing cells
+                            tableHtml += '<td class="bingo-cell">' + cleanTrackText(shuffledSongs[cellIndex]) + '</td>';
+                            cellIndex++;
+                        }
+                    }
+                    tableHtml += '</tr>';
+                }
+                tableHtml += '</tbody></table>';
+                
+                cardBox.innerHTML = cardHeaderHtml + tableHtml;
+                targetWrapper.appendChild(cardBox);
+            }
+            
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('preview-summary-panel').style.display = 'block';
+        }
+
+        function shuffleArray(arr) {
+            var currentIndex = arr.length, temporaryValue, randomIndex;
+            while (0 !== currentIndex) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex -= 1;
+                temporaryValue = arr[currentIndex];
+                arr[currentIndex] = arr[randomIndex];
+                arr[randomIndex] = temporaryValue;
+            }
+            return arr;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

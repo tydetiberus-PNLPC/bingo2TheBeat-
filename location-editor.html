@@ -1,0 +1,239 @@
+<!-- File: location-editor.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title id="page-title">Venue Editor | Bingo to the Beat!</title>
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    @media (max-width: 600px) { .grid-2col, .grid-3col { grid-template-columns: 1fr; } }
+    
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand-title">
+        <h1>BINGO TO THE BEAT</h1>
+        <span class="subtitle">Venue Modification Console</span>
+      </div>
+      <div>
+        <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary">← BACK TO DASHBOARD</a>
+      </div>
+    </div>
+  </header>
+  
+  <main class="dashboard-viewport" style="max-width: 700px;">
+    <section class="pro-card">
+      <div class="card-header">
+        <h2 id="form-main-title" style="color: var(--primary);">Loading...</h2>
+      </div>
+      <div class="card-body">
+        
+        <form id="editVenueForm" onsubmit="handleVenueSave(event)">
+          <input type="hidden" id="edit-venue-id" name="locationId" value="">
+          
+          <div class="grid-2col">
+              <div class="form-group">
+                  <label class="form-label">Venue Name</label>
+                  <input type="text" id="venue-name" class="form-control" required placeholder="e.g. The Sample Saloon">
+              </div>
+              <div class="form-group">
+                  <label class="form-label">Google Maps URL</label>
+                  <input type="text" id="venue-maps-url" class="form-control" placeholder="Paste link...">
+              </div>
+          </div>
+          
+          <div class="grid-3col">
+              <div class="form-group">
+                  <label class="form-label">Address</label>
+                  <input type="text" id="venue-address" class="form-control" placeholder="123 Main St">
+              </div>
+              <div class="form-group">
+                  <label class="form-label">City</label>
+                  <input type="text" id="venue-city" class="form-control" placeholder="New Port Richey">
+              </div>
+              <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div>
+                      <label class="form-label">State</label>
+                      <input type="text" id="venue-state" class="form-control" placeholder="FL">
+                  </div>
+                  <div>
+                      <label class="form-label">Zip</label>
+                      <input type="text" id="venue-zip" class="form-control" placeholder="34652">
+                  </div>
+              </div>
+          </div>
+          
+          <div class="grid-3col">
+              <div class="form-group">
+                  <label class="form-label">Contact Name</label>
+                  <input type="text" id="venue-contact-name" class="form-control" placeholder="Manager Mike">
+              </div>
+              <div class="form-group">
+                  <label class="form-label">Phone</label>
+                  <input type="text" id="venue-contact-phone" class="form-control" placeholder="(555) 555-5555">
+              </div>
+              <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" id="venue-contact-email" class="form-control" placeholder="mike@venue.com">
+              </div>
+          </div>
+          
+          <div class="form-group">
+              <label class="form-label">Location Setup Instructions</label>
+              <textarea id="venue-notes" class="form-control" rows="3" placeholder="Enter setup details, loading dock info..."></textarea>
+          </div>
+          
+          <div class="form-group" style="display: flex; justify-content: flex-end; margin-top: 10px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #94a3b8; font-weight: bold; font-size: 1rem;">
+                <label class="switch"><input type="checkbox" id="venue-active" checked><span class="slider"></span></label> VENUE IS ACTIVE
+              </label>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+            <div>
+              <button type="button" id="btn-delete-venue" onclick="confirmDeleteVenue()" class="btn btn-danger" style="padding: 10px 20px;">🗑️ DELETE VENUE</button>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary" style="padding: 10px 20px;">CANCEL</a>
+              <button type="submit" id="btn-save-venue" class="btn btn-primary" style="padding: 10px 20px;">SAVE CHANGES</button>
+            </div>
+          </div>
+          
+          <div id="save-status" style="margin-top: 15px; font-weight: bold; text-align: center; height: 20px;"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+  
+  <script>
+    var APP_BASE_URL = "<?= ScriptApp.getService().getUrl() ?>";
+    var currentLocationId = null;
+    var isCreateMode = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var lId = urlParams.get('locationId');
+      
+      if (lId) {
+        startEditor(lId);
+      } else if (typeof google !== 'undefined' && google.script && google.script.url) {
+        google.script.url.getLocation(function(location) {
+          var paramLocId = (location && location.parameter) ? location.parameter.locationId : null;
+          startEditor(paramLocId);
+        });
+      } else {
+        startEditor(null);
+      }
+    });
+
+    function startEditor(locationId) {
+      currentLocationId = locationId;
+      isCreateMode = !locationId;
+      
+      if (isCreateMode) {
+        document.getElementById('page-title').innerText = "Add Venue | Bingo to the Beat!";
+        document.getElementById('form-main-title').innerText = "Add New Venue";
+        document.getElementById('btn-save-venue').innerText = "💾 SAVE NEW VENUE";
+        document.getElementById('btn-delete-venue').style.display = 'none'; // Hide delete when creating
+      } else {
+        document.getElementById('edit-venue-id').value = locationId;
+        document.getElementById('form-main-title').innerText = "Edit Venue";
+        loadVenueData(locationId);
+      }
+    }
+
+    function loadVenueData(locationId) {
+        google.script.run.withSuccessHandler(function(venue) {
+            if(!venue) {
+                document.getElementById('save-status').innerText = "❌ Venue ID not found.";
+                document.getElementById('save-status').style.color = "var(--danger)";
+                return;
+            }
+            document.getElementById('venue-name').value = venue.businessName || venue.locationName || "";
+            document.getElementById('venue-maps-url').value = venue.googleMapsUrl || "";
+            document.getElementById('venue-address').value = venue.address || "";
+            document.getElementById('venue-city').value = venue.city || "";
+            document.getElementById('venue-state').value = venue.state || "";
+            document.getElementById('venue-zip').value = venue.postalCode || venue.zip || "";
+            document.getElementById('venue-contact-name').value = venue.contactName || "";
+            document.getElementById('venue-contact-phone').value = venue.contactPhone || "";
+            document.getElementById('venue-contact-email').value = venue.contactEmail || "";
+            document.getElementById('venue-notes').value = venue.notes || venue.locationSetupInstructions || "";
+            document.getElementById('venue-active').checked = (venue.isActive !== false && venue.isActive !== "FALSE" && venue.active !== false && venue.active !== "FALSE");
+        }).getLocationById(locationId); // Assuming getLocationById exists
+    }
+
+    function handleVenueSave(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-save-venue');
+        var status = document.getElementById('save-status');
+        
+        var payload = {
+            locationId: currentLocationId, // Passing null when creating triggers appendRow in backend
+            businessName: document.getElementById('venue-name').value,
+            googleMapsUrl: document.getElementById('venue-maps-url').value,
+            address: document.getElementById('venue-address').value,
+            city: document.getElementById('venue-city').value,
+            state: document.getElementById('venue-state').value,
+            postalCode: document.getElementById('venue-zip').value,
+            contactName: document.getElementById('venue-contact-name').value,
+            contactPhone: document.getElementById('venue-contact-phone').value,
+            contactEmail: document.getElementById('venue-contact-email').value,
+            notes: document.getElementById('venue-notes').value,
+            active: document.getElementById('venue-active').checked
+        };
+        
+        btn.disabled = true; 
+        btn.innerText = "SAVING...";
+        status.innerText = "Processing...";
+        status.style.color = "var(--text-muted)";
+        
+        google.script.run
+            .withSuccessHandler(function(res) {
+                btn.disabled = false; btn.innerText = isCreateMode ? "💾 SAVE NEW VENUE" : "SAVE CHANGES";
+                status.innerText = "✅ Venue saved successfully!";
+                status.style.color = "var(--accent)";
+                setTimeout(function() { window.open(APP_BASE_URL + "?view=index", "_top"); }, 1000);
+            })
+            .withFailureHandler(function(err) {
+                btn.disabled = false; btn.innerText = isCreateMode ? "💾 SAVE NEW VENUE" : "SAVE CHANGES";
+                status.innerText = "❌ Error: " + err.message;
+                status.style.color = "var(--danger)";
+            })
+            .saveLocation(payload); // saveLocation handles upsert automatically
+    }
+
+    function confirmDeleteVenue() {
+        if (!currentLocationId || isCreateMode) return;
+        if (confirm("⚠️ ARE YOU SURE YOU WANT TO DELETE THIS VENUE?")) {
+            var btn = document.getElementById('btn-delete-venue');
+            btn.innerText = "DELETING...";
+            btn.disabled = true;
+            
+            google.script.run
+                .withSuccessHandler(function() {
+                    window.open(APP_BASE_URL + "?view=index", "_top");
+                })
+                .withFailureHandler(function(err) {
+                    alert("Error deleting venue: " + err.message);
+                    btn.innerText = "🗑️ DELETE VENUE";
+                    btn.disabled = false;
+                })
+                .deleteLocationById(currentLocationId); // Assuming deleteLocationById exists
+        }
+    }
+  </script>
+</body>
+</html>

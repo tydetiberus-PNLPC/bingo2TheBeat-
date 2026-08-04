@@ -1,0 +1,9 @@
+Copyright (c) 2026 NPR Tech Cowboy Productions, Inc. All Rights Reserved.
+
+This source code is confidential and proprietary. Authorized access is granted 
+solely to designated individuals or groups explicitly approved by the copyright holder. 
+Authorized users may view, modify, and execute this code strictly for the internal 
+purposes specified by NPR Tech Cowboy Productions, Inc.
+
+Distribution, sublicensing, or publication of this source code, in whole or in part, 
+to any third party or the general public is strictly prohibited without prior written consent.

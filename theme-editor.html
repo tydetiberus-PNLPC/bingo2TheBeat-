@@ -1,0 +1,424 @@
+<!-- File: theme-editor.html -->
+<!--
+  REVISION NOTES (this version):
+  - ADDED: A client-side sanity check on the cleaned Playlist ID before it's
+    sent to the scanner. Standard YouTube playlist IDs are long (usually
+    ~34 characters for "PL..." playlists). If someone pastes a partial/
+    truncated ID or link, the scan used to silently return "0 tracks found"
+    with no explanation. Now the terminal log flags this immediately with
+    a clear warning, and the scan still runs (in case it's a legitimately
+    short special-type ID) so nothing is blocked -- just made visible.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title id="page-title">Theme Editor | Bingo to the Beat!</title>
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    @media (max-width: 600px) { .grid-2col, .grid-3col { grid-template-columns: 1fr; } }
+    
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .scan-results-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      display: none;
+    }
+    .badge-pass { background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+    .badge-warn { background: #f59e0b; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+    .badge-fail { background: #ef4444; color: #fff; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+    
+    /* TERMINAL LOG STYLING */
+    .terminal-window {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #38bdf8;
+      height: 120px;
+      overflow-y: auto;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+    .terminal-warning-line {
+      color: #f59e0b !important;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand-title">
+        <h1>BINGO TO THE BEAT</h1>
+        <span class="subtitle" id="header-subtitle">Theme Modification Console</span>
+      </div>
+      <div>
+        <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary">← BACK TO DASHBOARD</a>
+      </div>
+    </div>
+  </header>
+  
+  <main class="dashboard-viewport" style="max-width: 700px;">
+    <section class="pro-card">
+      <div class="card-header">
+        <h2 id="form-main-title" style="color: var(--primary);">Loading...</h2>
+      </div>
+      <div class="card-body">
+        
+        <form id="editThemeForm" onsubmit="handleThemeSave(event)">
+          <input type="hidden" id="edit-theme-id" name="themeId" value="">
+          
+          <div class="grid-2col">
+            <div class="form-group">
+                <label class="form-label">Theme Name</label>
+                <input type="text" id="theme-name" class="form-control" required placeholder="e.g. 70s Disco Fever">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Short Description</label>
+                <input type="text" id="theme-desc" class="form-control" placeholder="e.g. Classic dance floor anthems.">
+            </div>
+          </div>
+
+          <div class="form-group">
+              <label class="form-label">YouTube Playlist ID / URL</label>
+              <div style="display: flex; gap: 10px;">
+                <input type="text" 
+                       id="theme-playlist-id" 
+                       class="form-control" 
+                       required 
+                       maxlength="500"
+                       style="width: 100%; font-family: monospace; font-size: 0.85rem;" 
+                       placeholder="Paste full YouTube URL or Playlist ID"
+                       onpaste="setTimeout(cleanInputOnPaste, 50)">
+                <button type="button" id="btn-scan-playlist" onclick="triggerPlaylistScan()" class="btn btn-secondary" style="white-space: nowrap; padding: 0 16px;">🔍 SCAN PLAYLIST</button>
+              </div>
+          </div>
+
+          <!-- SCAN RESULTS DISPLAY CARD -->
+          <div id="scan-results-box" class="scan-results-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="color: #f8fafc;">Playlist Prescreen Summary:</strong>
+              <span id="scan-status-badge"></span>
+            </div>
+            <div style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
+              <div>• Total Tracks Scanned: <span id="scan-total-count" style="color:#f8fafc; font-weight:bold;">0</span></div>
+              <div>• Playable Tracks Found: <span id="scan-valid-count" style="color:#10b981; font-weight:bold;">0</span></div>
+              <div>• Unplayable/Private Tracks: <span id="scan-dead-count" style="color:#ef4444; font-weight:bold;">0</span></div>
+            </div>
+            
+            <!-- TERMINAL LOG DISPLAY -->
+            <div id="terminal-console" class="terminal-window">Initializing scanner log...</div>
+
+            <!-- ONSCREEN REQUIREMENT / WARNING MESSAGE -->
+            <div id="scan-requirement-msg" style="margin-top: 10px; font-size: 0.8rem; font-weight: bold;"></div>
+          </div>
+
+          <div class="grid-3col" style="margin-top: 15px;">
+              <div class="form-group">
+                  <label class="form-label">Media Type</label>
+                  <select id="theme-media-type" class="form-control">
+                      <option value="Audio">Audio (Lyrical / Album Art)</option>
+                      <option value="Video">Video (Music Videos)</option>
+                  </select>
+              </div>
+              <div class="form-group">
+                  <label class="form-label">Frame Type</label>
+                  <select id="theme-frame-type" class="form-control">
+                      <option value="color">Solid Color</option>
+                      <option value="image">Custom Image</option>
+                  </select>
+              </div>
+              <div class="form-group">
+                  <label class="form-label">Frame Color (Hex)</label>
+                  <input type="text" id="theme-frame-color" class="form-control" placeholder="#8b5a2b">
+              </div>
+          </div>
+          
+          <div class="form-group" style="display: flex; justify-content: flex-end; margin-top: 10px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #94a3b8; font-weight: bold; font-size: 1rem;">
+                <label class="switch"><input type="checkbox" id="theme-active" checked><span class="slider"></span></label> THEME IS ACTIVE
+              </label>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+            <div>
+              <button type="button" id="btn-delete-theme" onclick="confirmDeleteTheme()" class="btn btn-danger" style="padding: 10px 20px;">🗑️ DELETE THEME</button>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary" style="padding: 10px 20px;">CANCEL</a>
+              <button type="submit" id="btn-save-theme" class="btn btn-primary" style="padding: 10px 20px;">SAVE THEME</button>
+            </div>
+          </div>
+          
+          <div id="save-status" style="margin-top: 15px; font-weight: bold; text-align: center; height: 20px;"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+  
+  <script>
+    var APP_BASE_URL = "<?= ScriptApp.getService().getUrl() ?>";
+    var currentThemeId = null;
+    var isCreateMode = false;
+    var lastScanData = null;
+
+    // Standard YouTube playlist IDs are long. "PL"/"UU"/"LL" style IDs run
+    // roughly 34 characters total; special ones (RD, OLAK5uy_, etc.) vary
+    // but are still normally well over a dozen characters. Anything shorter
+    // than this is very likely a truncated/incomplete paste rather than a
+    // real playlist ID, so we warn -- without blocking the scan, since we
+    // can't be 100% certain across every ID format YouTube has used.
+    var MIN_EXPECTED_ID_LENGTH = 15;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var tId = urlParams.get('themeId');
+      
+      if (tId) {
+        startEditor(tId);
+      } else if (typeof google !== 'undefined' && google.script && google.script.url) {
+        google.script.url.getLocation(function(location) {
+          var paramThemeId = (location && location.parameter) ? location.parameter.themeId : null;
+          startEditor(paramThemeId);
+        });
+      } else {
+        startEditor(null);
+      }
+    });
+
+    function startEditor(themeId) {
+      currentThemeId = themeId;
+      isCreateMode = !themeId;
+      
+      var subtitleEl = document.getElementById('header-subtitle');
+      
+      if (isCreateMode) {
+        document.getElementById('page-title').innerText = "Create Theme | Bingo to the Beat!";
+        document.getElementById('form-main-title').innerText = "Create New Theme";
+        document.getElementById('btn-save-theme').innerText = "💾 SAVE THEME";
+        document.getElementById('btn-delete-theme').style.display = 'none'; 
+        if (subtitleEl) subtitleEl.innerText = "New Playlist Setup";
+      } else {
+        document.getElementById('edit-theme-id').value = themeId;
+        document.getElementById('form-main-title').innerText = "Edit Theme";
+        document.getElementById('btn-save-theme').innerText = "SAVE CHANGES";
+        document.getElementById('btn-delete-theme').style.display = 'inline-block'; 
+        if (subtitleEl) subtitleEl.innerText = "Theme Modification Console";
+        loadThemeData(themeId);
+      }
+    }
+
+    function loadThemeData(themeId) {
+        google.script.run.withSuccessHandler(function(theme) {
+            if(!theme) {
+                document.getElementById('save-status').innerText = "❌ Theme ID not found.";
+                document.getElementById('save-status').style.color = "var(--danger)";
+                return;
+            }
+            document.getElementById('theme-name').value = theme.themeName || theme.name || "";
+            document.getElementById('theme-desc').value = theme.shortDescription || "";
+            document.getElementById('theme-playlist-id').value = theme.playlistId || theme.youtubeUrl || "";
+            document.getElementById('theme-media-type').value = theme.mediaType || "Audio";
+            document.getElementById('theme-frame-type').value = theme.frameType || "color";
+            document.getElementById('theme-frame-color').value = theme.frameColor || "";
+            document.getElementById('theme-active').checked = (theme.isActive !== false && theme.isActive !== "FALSE" && theme.active !== false && theme.active !== "FALSE");
+        }).getThemeById(themeId); 
+    }
+
+    // Auto-clean incoming URLs on paste
+    function cleanInputOnPaste() {
+        var inputEl = document.getElementById('theme-playlist-id');
+        var val = inputEl.value.trim();
+        
+        if (val.includes('list=')) {
+            var cleanId = val.split('list=')[1].split('&')[0].split('?')[0].split('#')[0];
+            inputEl.value = cleanId;
+        }
+    }
+
+    function triggerPlaylistScan() {
+      var urlInput = document.getElementById('theme-playlist-id');
+      var rawVal = urlInput.value.trim();
+      
+      // Clean query parameters before trigger
+      if (rawVal.includes("list=")) {
+        rawVal = rawVal.split("list=")[1].split("&")[0].split("?")[0].split("#")[0];
+        urlInput.value = rawVal;
+      }
+      
+      var scanBtn = document.getElementById('btn-scan-playlist');
+      var box = document.getElementById('scan-results-box');
+      var status = document.getElementById('save-status');
+      var consoleBox = document.getElementById('terminal-console');
+
+      if (!rawVal) {
+        alert("Please paste a YouTube Playlist URL or ID first.");
+        return;
+      }
+
+      scanBtn.disabled = true;
+      scanBtn.innerText = "SCANNING...";
+      status.innerText = "Pinging YouTube Data API v3...";
+      status.style.color = "var(--primary)";
+      box.style.display = "block";
+      
+      // Frontend log check
+      consoleBox.innerText = "> Raw Field Input: \"" + rawVal + "\"\n> Character Count: " + rawVal.length + "\n> Connecting to YouTube Data API v3...";
+
+      // ADDED: Flag suspiciously short/truncated IDs up front, so a bad
+      // paste is obvious immediately instead of showing up later as a
+      // confusing "0 tracks found" with no clear cause.
+      if (rawVal.length < MIN_EXPECTED_ID_LENGTH) {
+        consoleBox.innerText += "\n> ⚠ WARNING: This ID looks unusually short (" + rawVal.length + " chars). " +
+          "Standard YouTube playlist IDs are much longer. Double-check you copied the FULL playlist link " +
+          "from YouTube's Share button rather than a partial/shortened one.";
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          scanBtn.disabled = false;
+          scanBtn.innerText = "🔍 RE-SCAN";
+          
+          if (!res || !res.success) {
+            status.innerText = "❌ " + (res ? res.message : "Scan failed.");
+            status.style.color = "var(--danger)";
+            consoleBox.innerText += "\n> ERROR: " + (res ? res.message : "Failed to load playlist.");
+            return;
+          }
+
+          lastScanData = res;
+          
+          document.getElementById('scan-total-count').innerText = res.totalScanned || 0;
+          document.getElementById('scan-valid-count').innerText = res.validCount || 0;
+          document.getElementById('scan-dead-count').innerText = res.deadCount || 0;
+
+          if (res.logEntries && res.logEntries.length > 0) {
+            consoleBox.innerText = "> Scan Complete.\n> " + res.logEntries.join("\n> ");
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+          } else {
+            consoleBox.innerText += "\n> No tracks returned. Verify YouTube playlist privacy setting.";
+            if (rawVal.length < MIN_EXPECTED_ID_LENGTH) {
+              consoleBox.innerText += "\n> ⚠ This ID (" + rawVal.length + " chars) is shorter than a typical playlist ID " +
+                "-- most likely it's incomplete. Re-copy the full playlist link and try again.";
+            }
+          }
+
+          var badge = document.getElementById('scan-status-badge');
+          var msg = document.getElementById('scan-requirement-msg');
+          var validNum = res.validCount || 0;
+
+          if (validNum >= 75) {
+            badge.className = "badge-pass";
+            badge.innerText = "READY FOR BINGO (75+)";
+            msg.style.color = "#10b981";
+            msg.innerText = "✅ Excellent! This playlist meets the 75-song minimum requirement.";
+          } else if (validNum > 0) {
+            badge.className = "badge-warn";
+            badge.innerText = "UNDER 75 SONGS";
+            msg.style.color = "#f59e0b";
+            msg.innerText = "⚠️ Notice: This playlist has " + validNum + " playable tracks. You can save it now as a draft and add more songs later.";
+          } else {
+            badge.className = "badge-fail";
+            badge.innerText = "0 TRACKS FOUND";
+            msg.style.color = "#ef4444";
+            if (rawVal.length < MIN_EXPECTED_ID_LENGTH) {
+              msg.innerText = "🚫 Notice: No playable tracks pulled, and the ID entered (" + rawVal.length + " characters) looks incomplete. " +
+                "Please re-copy the FULL playlist link from YouTube's Share button and re-scan.";
+            } else {
+              msg.innerText = "🚫 Notice: No playable tracks pulled. Only PUBLIC YouTube playlists can be scanned. Please check YouTube settings and ensure playlist privacy is set to Public.";
+            }
+          }
+
+          status.innerText = "Scan complete!";
+          status.style.color = "var(--accent)";
+        })
+        .withFailureHandler(function(err) {
+          scanBtn.disabled = false;
+          scanBtn.innerText = "🔍 SCAN PLAYLIST";
+          status.innerText = "❌ Error scanning playlist: " + err.message;
+          status.style.color = "var(--danger)";
+          consoleBox.innerText += "\n> FATAL ERROR: " + err.message;
+        })
+        .scanYouTubePlaylist(rawVal);
+    }
+
+    function handleThemeSave(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-save-theme');
+        var status = document.getElementById('save-status');
+        
+        var payload = {
+            themeId: isCreateMode ? null : currentThemeId,
+            themeName: document.getElementById('theme-name').value,
+            shortDescription: document.getElementById('theme-desc').value,
+            playlistId: document.getElementById('theme-playlist-id').value,
+            mediaType: document.getElementById('theme-media-type').value,
+            frameType: document.getElementById('theme-frame-type').value,
+            frameColor: document.getElementById('theme-frame-color').value,
+            active: document.getElementById('theme-active').checked,
+            scannedValidTracks: lastScanData ? lastScanData.validTracks : [],
+            scannedDeadTracks: lastScanData ? lastScanData.deadTracks : []
+        };
+        
+        btn.disabled = true; 
+        btn.innerText = "SAVING...";
+        status.innerText = "Saving theme and writing tracks to database...";
+        status.style.color = "var(--text-muted)";
+        
+        google.script.run
+            .withSuccessHandler(function(res) {
+                btn.disabled = false; 
+                btn.innerText = isCreateMode ? "💾 SAVE THEME" : "SAVE CHANGES";
+                
+                status.innerText = "✅ Theme saved with " + res.trackCount + " playable tracks!";
+                status.style.color = "var(--accent)";
+                
+                setTimeout(function() { window.open(APP_BASE_URL + "?view=index", "_top"); }, 1500);
+            })
+            .withFailureHandler(function(err) {
+                btn.disabled = false; 
+                btn.innerText = isCreateMode ? "💾 SAVE THEME" : "SAVE CHANGES";
+                status.innerText = "❌ Error: " + err.message;
+                status.style.color = "var(--danger)";
+            })
+            .saveTheme(payload); 
+    }
+
+    function confirmDeleteTheme() {
+        if (!currentThemeId || isCreateMode) return;
+        if (confirm("⚠️ ARE YOU SURE YOU WANT TO DELETE THIS THEME?")) {
+            var btn = document.getElementById('btn-delete-theme');
+            btn.innerText = "DELETING...";
+            btn.disabled = true;
+            
+            google.script.run
+                .withSuccessHandler(function() {
+                    window.open(APP_BASE_URL + "?view=index", "_top");
+                })
+                .withFailureHandler(function(err) {
+                    alert("Error deleting theme: " + err.message);
+                    btn.innerText = "🗑️ DELETE THEME";
+                    btn.disabled = false;
+                })
+                .deleteThemeById(currentThemeId); 
+        }
+    }
+  </script>
+</body>
+</html>

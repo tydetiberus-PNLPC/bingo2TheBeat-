@@ -1,0 +1,920 @@
+<!-- File: dj.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DJ Host Console | Bingo to the Beat</title>
+  
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <style>
+    <?!= fetchGitHubAsset('css/western-theme.css'); ?>
+
+    /* DYNAMIC SKINS / COLOR SCHEMES */
+    body {
+        transition: background-color 0.3s ease, color 0.3s ease;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body[data-skin="neon-dark"] {
+        --bg-main: #020617; --bg-panel: #0f172a; --border-panel: #334155;
+        --text-main: #f8fafc; --text-sub: #94a3b8; --accent-color: #38bdf8;
+    }
+
+    body[data-skin="bright-day"] {
+        --bg-main: #e2e8f0; --bg-panel: #ffffff; --border-panel: #94a3b8;
+        --text-main: #020617; --text-sub: #334155; --accent-color: #0284c7;
+    }
+
+    body[data-skin="cyberpunk"] {
+        --bg-main: #05050a; --bg-panel: #0f0d1b; --border-panel: #ff007f;
+        --text-main: #00ffcc; --text-sub: #ff007f; --accent-color: #00ffcc;
+    }
+
+    body { background-color: var(--bg-main); color: var(--text-main); }
+
+    /* CONTROL BAR */
+    .dj-header-panel {
+        background: var(--bg-panel); border: 2px solid var(--border-panel);
+        border-radius: 10px; padding: 20px; margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3); display: flex;
+        flex-direction: column; align-items: center; gap: 15px;
+    }
+
+    .dj-top-row, .dj-bottom-row, .dj-settings-row {
+        display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    }
+
+    .dj-top-row { gap: 15px; }
+    .dj-bottom-row { gap: 12px; }
+    .dj-settings-row { gap: 15px; margin-top: 5px; font-size: 0.85rem; font-weight: 700; color: var(--text-sub); }
+
+    .stat-pill {
+        display: flex; flex-direction: column; justify-content: center;
+        line-height: 1.2; text-align: center;
+    }
+    .stat-label { font-size: 0.7rem; font-weight: 900; color: var(--text-sub); text-transform: uppercase; }
+    .stat-value { font-size: 1.6rem; font-weight: 900; color: var(--accent-color); }
+
+    .stat-badge-main {
+        background: #1e1b4b; border: 2px solid #6366f1; color: #a5b4fc;
+        padding: 8px 24px; border-radius: 8px; font-size: 1.2rem; font-weight: 900; text-transform: uppercase;
+    }
+
+    .inline-timer-input {
+        background: var(--bg-main); border: 1px solid var(--border-panel); color: var(--accent-color);
+        font-weight: bold; padding: 4px 8px; border-radius: 4px; width: 65px; text-align: center; margin-left: 5px; outline: none; cursor: pointer;
+    }
+
+    /* TACTILE ACTION BUTTONS */
+    .btn-dj-action {
+        height: 44px; padding: 0 20px; font-weight: 900; font-size: 0.95rem; border-radius: 6px; border: none; cursor: pointer; transition: transform 0.1s; text-transform: uppercase;
+    }
+    .btn-dj-action:active { transform: translateY(4px); }
+
+    .btn-start { background: #10b981; color: #022c22; box-shadow: 0 4px 0 #059669; }
+    .btn-pause-replay { background: #f59e0b; color: #451a03; box-shadow: 0 4px 0 #d97706; }
+    
+    /* HIGH RISK SEPARATED BUTTONS */
+    .btn-danger { background: #ef4444; color: #ffffff; box-shadow: 0 4px 0 #dc2626; }
+    .btn-force { background: #d97706; color: #ffffff; box-shadow: 0 4px 0 #b45309; }
+
+    .btn-bingo { background: #ef4444; color: #ffffff; box-shadow: 0 4px 0 #dc2626; border-radius: 30px; padding: 0 25px; animation: pulse-bingo 2s infinite; }
+    @keyframes pulse-bingo { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+    /* LOCATION NOTES PULSE ANIMATION */
+    @keyframes pulse-amber {
+        0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); transform: scale(1); }
+        50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); transform: scale(1.05); }
+        100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); transform: scale(1); }
+    }
+    .pulse-notes-btn {
+        animation: pulse-amber 1.8s infinite !important; background-color: #f59e0b !important; color: #451a03 !important; border-color: #b45309 !important;
+    }
+
+    /* BINGO CALL FLASH ANIMATION */
+    @keyframes intense-flash {
+        0% { background-color: #d9534f; color: white; transform: scale(1); }
+        50% { background-color: #ffeb3b; color: #c62828; transform: scale(1.05); box-shadow: 0 0 15px #ffeb3b; }
+        100% { background-color: #d9534f; color: white; transform: scale(1); }
+    }
+    .flash-alert { animation: intense-flash 1s infinite !important; border: 3px solid #ffeb3b !important; font-size: 1.1rem !important; }
+
+    /* PATTERN CARD BACKING (REDUCED 25%) */
+    .pattern-card-frame {
+        background-color: #faf6f0 !important; border: 2px solid #cbd5e1 !important; border-radius: 8px; padding: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+        max-width: 150px; margin: 0 auto; /* Reduced from default */
+    }
+    .pattern-grid-preview {
+        display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; background-color: #e2e8f0; padding: 3px; border-radius: 6px; border: 1px solid #cbd5e1;
+    }
+    .pattern-grid-cell {
+        aspect-ratio: 1 / 1; background-color: #ffffff; border: 1px solid #94a3b8; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 900; color: #0f172a; transition: background-color 0.3s ease;
+    }
+    .pattern-grid-cell.active { background-color: #dc2626 !important; color: #ffffff !important; border-color: #991b1b !important; }
+
+    /* MODALS */
+    .modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .modal-content {
+        background: var(--bg-panel); border: 2px solid var(--border-panel); border-radius: 12px; padding: 24px; width: 95%; max-width: 850px; max-height: 85vh; overflow-y: auto; color: var(--text-main);
+    }
+    
+    /* IOS TOGGLES */
+    .switch { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(16px); }
+  </style>
+</head>
+<body data-skin="neon-dark">
+
+  <header class="app-header" style="margin-bottom: 15px;">
+    <div class="header-content">
+      <div class="brand-title">
+        <h1 id="theme-display-title">THEME: LOADING...</h1>
+        <!-- LOCATION SUBTITLE & PULSING NOTES BUTTON -->
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+          <span class="subtitle" id="location-display-sub" style="font-size: 0.95rem; font-weight: 800; color: var(--accent-color);">📍 Location Loading...</span>
+          <button type="button" id="btn-venue-notes" onclick="openVenueNotesModal()" class="btn btn-secondary" style="display: none; padding: 3px 10px; font-size: 0.75rem; font-weight: 900; border-radius: 4px; border: none; cursor: pointer;">
+            📋 Venue Notes
+          </button>
+        </div>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <select class="inline-timer-input" id="skin-switcher" onchange="changeSkin(this.value)" style="width: auto; padding: 6px;">
+          <option value="neon-dark">🌙 Neon Dark</option>
+          <option value="bright-day">☀️ High-Vis Day</option>
+          <option value="cyberpunk">⚡ Cyberpunk</option>
+        </select>
+        <button type="button" onclick="openMonitorWindow()" class="btn btn-primary" style="background: #2563eb; padding: 8px 16px;">📺 OPEN MONITOR</button>
+        <a href="<?= ScriptApp.getService().getUrl() ?>?view=index" target="_top" class="btn btn-secondary" style="padding: 8px 16px;">🚪 CLOSE DJ</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- EVENT SECURITY WIDGET -->
+  <div id="security-widget" style="display: none; background: #3e2723; color: #ffd700; border: 2px solid #8b5a2b; border-radius: 8px; padding: 10px 20px; margin-bottom: 15px; text-align: center; max-width: 400px; margin-left: auto; margin-right: auto;">
+      <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #eaddc5; margin-bottom: 4px;">Paid Event VIP Access PIN</div>
+      <div id="dj-pin-display" style="font-size: 2.5rem; font-weight: 900; letter-spacing: 6px; margin: 5px 0;">----</div>
+      <button onclick="regeneratePin()" class="btn btn-secondary" style="font-size: 0.75rem; padding: 8px 10px; width: 100%; border: 1px solid #ffd700; cursor: pointer;">
+          🔄 REGENERATE PIN
+      </button>
+  </div>
+
+  <main class="dashboard-viewport" style="max-width: 1200px; margin: 0 auto;">
+
+    <!-- TOP CONTROL BAR -->
+    <div class="dj-header-panel">
+      <div class="dj-top-row">
+        <div class="stat-pill">
+          <span class="stat-label">Total</span>
+          <span class="stat-value" id="stat-total-played">0</span>
+        </div>
+        <div class="stat-badge-main" id="stat-game-number">GAME #1 OF 4</div>
+        <div class="stat-pill">
+          <span class="stat-label">This Game</span>
+          <span class="stat-value" style="color: #4ade80;" id="stat-game-played">0</span>
+        </div>
+      </div>
+
+      <!-- STANDARD PLAYBACK CONTROLS -->
+      <div class="dj-bottom-row">
+        <button type="button" id="btn-start-game" onclick="handleStartGame()" class="btn-dj-action btn-start">▶ START GAME</button>
+        <button type="button" id="btn-pause-replay" onclick="handlePauseReplay()" class="btn-dj-action btn-pause-replay">⏸ / 🔄 PAUSE / REPLAY</button>
+      </div>
+
+      <!-- HIGH RISK CONTROLS (SEPARATED) -->
+      <div class="dj-bottom-row" style="margin-top: 5px; border-top: 1px dashed var(--border-panel); padding-top: 15px; width: 100%;">
+        <button type="button" id="btn-game-stop" onclick="handleGameStop()" class="btn-dj-action btn-danger">⏹ GAME STOP</button>
+        <button type="button" id="btn-force-next" onclick="handleForceNextGame()" class="btn-dj-action btn-force">⏭ FORCE NEXT GAME</button>
+      </div>
+
+      <div class="dj-settings-row">
+        <label>CLIP TIME: 
+          <select id="input-clip-time" class="inline-timer-input" onchange="saveTimingSettings()">
+            <option value="30">30s</option>
+            <option value="45">45s</option>
+            <option value="60">60s</option>
+            <!-- 5s injected dynamically in test mode -->
+          </select>
+        </label>
+        <div style="width: 1px; height: 16px; background: var(--border-panel); margin: 0 10px;"></div>
+        <label>PAUSE TIME: 
+          <select id="input-pause-time" class="inline-timer-input" onchange="saveTimingSettings()">
+            <option value="30">30s</option>
+            <option value="45">45s</option>
+            <option value="60">60s</option>
+            <!-- 1s injected dynamically in test mode -->
+          </select>
+        </label>
+        <div style="width: 1px; height: 16px; background: var(--border-panel); margin: 0 10px;"></div>
+        
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <label class="switch"><input type="checkbox" id="chk-auto-bingo" onchange="toggleAutoBingo(this.checked)" checked><span class="slider"></span></label> AUTO-BINGO
+        </label>
+        <div style="width: 1px; height: 16px; background: var(--border-panel); margin: 0 10px;"></div>
+        
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <label class="switch"><input type="checkbox" id="chk-show-art" onchange="toggleShowArt(this.checked)" checked><span class="slider"></span></label> SHOW ART
+        </label>
+        <div style="width: 1px; height: 16px; background: var(--border-panel); margin: 0 10px;"></div>
+
+        <div style="background:#dc2626; color:#fff; padding: 4px 12px; border-radius: 4px; font-weight: 900;" id="uncalled-count-badge">
+          UNCALLED: 0
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CONSOLE GRID -->
+    <div style="display: grid; grid-template-columns: 280px 1fr 300px; gap: 20px;">
+
+      <!-- LEFT: MONITOR PREVIEW & PLAYED SONGS -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        
+        <!-- MINI MONITOR PREVIEW -->
+        <section class="pro-card" style="margin: 0; background: var(--bg-panel); border: 2px solid var(--border-panel);">
+          <div class="card-header" style="border-bottom: 1px solid var(--border-panel); padding: 8px 12px;">
+            <h3 style="margin: 0; color: var(--text-main); font-size: 0.85rem; text-transform: uppercase;">Monitor Preview</h3>
+          </div>
+          <div class="card-body" id="monitor-preview-container" style="padding: 10px; text-align: center;">
+            <!-- Rendered dynamically (Iframe for testing, Mock for live) -->
+            <span style="color: var(--text-sub); font-size: 0.8rem;">Loading preview...</span>
+          </div>
+        </section>
+
+        <!-- PLAYED SONGS HISTORY -->
+        <section class="pro-card" style="margin: 0; background: var(--bg-panel); border: 2px solid var(--border-panel); flex: 1; display: flex; flex-direction: column;">
+          <div class="card-header" style="border-bottom: 1px solid var(--border-panel); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: var(--text-main); font-size: 1.05rem;">Played Songs</h3>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: bold; color: var(--text-sub); cursor: pointer;">
+                <label class="switch"><input type="checkbox" id="hide-songs-toggle" onchange="toggleHideSongs(this.checked)"><span class="slider"></span></label> HIDE
+            </label>
+          </div>
+          <div class="card-body" style="padding: 12px; height: 250px; overflow-y: auto;" id="played-songs-history">
+            <div style="color: var(--text-sub); font-style: italic; font-size: 0.85rem; text-align: center; margin-top: 20px;">No songs played yet.</div>
+          </div>
+        </section>
+
+        <!-- MID-GAME CARD GENERATOR -->
+        <button onclick="generateExtraCardsUi()" class="btn btn-secondary" style="border: 1px dashed var(--accent-color); color: var(--accent-color); font-weight: bold; width: 100%; padding: 12px; border-radius: 8px; cursor: pointer; text-transform: uppercase;">
+            ➕ Generate Extra Cards
+        </button>
+      </div>
+
+      <!-- CENTER: LIVE NOW PLAYING (BINGO BUTTON IN HEADER, CENTERED TIMER) -->
+      <section class="pro-card" style="margin: 0; background: var(--bg-panel); border: 2px solid var(--border-panel); display: flex; flex-direction: column;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-panel); padding: 12px 20px;">
+          <div style="flex: 1; text-align: left;">
+            <span style="font-size: 0.75rem; color: var(--text-sub); font-weight: bold; text-transform: uppercase;">Playback Status</span>
+            <div id="playback-status-text" style="color: var(--accent-color); font-weight: 900; font-size: 1.1rem;">Ready to Start</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <span style="font-family: monospace; font-size: 2rem; font-weight: 900; color: #ef4444;" id="media-timer-display">00:30</span>
+          </div>
+          <div style="flex: 1; text-align: right;">
+            <button type="button" id="btn-bingo-call" onclick="handleBingoCall()" class="btn-dj-action btn-bingo">🔔 BINGO!</button>
+          </div>
+        </div>
+
+        <div class="card-body" style="padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; flex: 1; padding-top: 30px;">
+          <div style="font-size: 1.4rem; font-weight: 900; color: var(--text-main); line-height: 1.2; max-width: 90%;" id="current-song-title">Placeholder Song</div>
+          <div style="font-size: 1rem; font-weight: 600; color: var(--accent-color); margin-top: 6px; margin-bottom: 20px;" id="current-song-artist">Artist Name</div>
+
+          <div id="album-art-container">
+            <img id="current-album-art" style="width: 220px; height: 220px; object-fit: cover; border-radius: 8px; border: 2px solid var(--border-panel); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+          </div>
+          
+          <div style="position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;">
+            <div id="hidden-audio-player-element"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: PATTERNS & NEXT GAME PLANNING -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        <section class="pro-card" style="margin: 0; background: var(--bg-panel); border: 2px solid var(--border-panel);">
+          <div class="card-header" style="border-bottom: 1px solid var(--border-panel); padding: 12px; display: flex; justify-content: center;">
+            <h3 style="margin: 0; color: var(--text-main); font-size: 1.05rem;">Current Pattern</h3>
+          </div>
+          <div class="card-body" style="padding: 16px;">
+            <div class="pattern-card-frame">
+              <div style="color: #0f172a !important; font-size: 0.95rem; font-weight: 900; text-align: center; margin-bottom: 2px; line-height: 1.1;" id="pattern-name-display">Standard Bingo</div>
+              <div style="color: #f59e0b !important; font-size: 0.75rem; font-weight: bold; text-align: center; margin-bottom: 8px; text-transform: uppercase;" id="pattern-diff-display">Difficulty: Easy</div>
+              <div class="pattern-grid-preview" id="pattern-grid-container"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ADVANCE NEXT GAME / EXPECTED PATTERN -->
+        <section class="pro-card" style="margin: 0; background: var(--bg-panel); border: 2px solid var(--border-panel); padding: 16px; text-align: center;">
+            <div style="font-size: 0.8rem; color: var(--text-sub); font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">Expected Next Game</div>
+            <div id="expected-next-pattern" style="font-size: 0.95rem; font-weight: 900; color: #f8fafc; margin-bottom: 2px; line-height: 1.2;">Loading...</div>
+            <div id="expected-next-diff" style="font-size: 0.75rem; color: var(--accent-color); font-weight: bold; text-transform: uppercase; margin-bottom: 15px;">--</div>
+
+            <div style="font-size: 0.7rem; color: var(--text-sub); font-weight: bold; margin-bottom: 6px; text-transform: uppercase; border-top: 1px dashed var(--border-panel); padding-top: 10px;">Modify Next Game</div>
+            <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 12px;">
+                <select id="next-game-diff" style="height: 38px; width: 100%; background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-panel); border-radius: 6px; font-weight: bold; padding: 0 8px; outline: none; cursor: pointer;">
+                    <option value="Easy">🟩 Level: Easy</option>
+                    <option value="Medium">🟨 Level: Medium</option>
+                    <option value="Hard">🟧 Level: Hard</option>
+                </select>
+                <button onclick="handleOverrideDifficulty()" class="btn btn-secondary" style="height: 38px; font-weight: bold; padding: 0 12px; cursor: pointer;">SET LEVEL</button>
+            </div>
+            
+            <button onclick="openUpcomingGamesModal()" class="btn btn-secondary" style="width: 100%; border: 1px dashed var(--accent-color); color: var(--accent-color); font-weight: bold; cursor: pointer;">📅 UPCOMING GAMES & PATTERNS</button>
+        </section>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- UPCOMING GAMES / PATTERN DICTIONARY MODAL -->
+  <div id="pattern-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-panel); padding-bottom: 10px; margin-bottom: 15px;">
+            <h2 style="margin: 0; color: var(--accent-color);">Upcoming Games Schedule</h2>
+            <button onclick="closePatternModal()" class="btn btn-secondary" style="padding: 4px 12px; cursor: pointer;">Close</button>
+        </div>
+        <div id="pattern-catalog-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px;">
+            <!-- Rendered dynamically -->
+        </div>
+    </div>
+  </div>
+
+  <!-- LOCATION SETUP INSTRUCTIONS MODAL -->
+  <div id="venue-notes-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 550px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-panel); padding-bottom: 10px; margin-bottom: 15px;">
+            <h2 style="margin: 0; color: #f59e0b; font-size: 1.3rem;">📍 Location Setup Instructions</h2>
+            <button onclick="closeVenueNotesModal()" class="btn btn-secondary" style="padding: 4px 12px; cursor: pointer;">Close</button>
+        </div>
+        <div id="venue-notes-body" style="font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; color: var(--text-main); background: var(--bg-main); padding: 16px; border-radius: 8px; border: 1px solid var(--border-panel);">
+            No specific setup instructions recorded for this venue.
+        </div>
+    </div>
+  </div>
+
+<script>
+    var APP_BASE_URL = "<?= ScriptApp.getService().getUrl() ?>";
+    var currentEventId = "<?= eventId ?>";
+    
+    var currentState = null;
+    var isPolling = false;
+    var patternAnimationTimer = null;
+    var currentPatternVariations = [];
+    var activeVariationIdx = 0;
+    var currentVenueNotes = "";
+    var isDevTestMode = false;
+
+    var ytPlayer = null;
+    var isPlayerReady = false;
+    var timerInterval = null;
+    var secondsRemaining = 30;
+    var currentTimerLabel = "CLIP";
+    var isSkipping = false;
+
+    var fallbackAlbumArt = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250' viewBox='0 0 250 250'%3E%3Crect width='250' height='250' fill='%231e293b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' font-weight='bold' fill='%2394a3b8'%3EMUSIC BINGO%3C/text%3E%3C/svg%3E";
+
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('hidden-audio-player-element', {
+        height: '1', width: '1', videoId: 'fJ9rUzIMcZQ',
+        playerVars: { 'autoplay': 0, 'controls': 0, 'playsinline': 1, 'enablejsapi': 1},
+        events: {
+          'onReady': function() { isPlayerReady = true; },
+          'onError': function(e) { handleUnplayableTrack(); }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('current-album-art').src = fallbackAlbumArt;
+      var savedSkin = localStorage.getItem('bingo_dj_skin') || 'neon-dark';
+      changeSkin(savedSkin);
+      initPatternGridPlaceholder();
+      startPolling();
+    });
+
+    function changeSkin(skinName) {
+      document.body.setAttribute('data-skin', skinName);
+      document.getElementById('skin-switcher').value = skinName;
+      localStorage.setItem('bingo_dj_skin', skinName);
+      google.script.run.updateSkinSetting(currentEventId, skinName); 
+    }
+
+    function initPatternGridPlaceholder() {
+      var grid = document.getElementById('pattern-grid-container');
+      if (!grid) return;
+      grid.innerHTML = '';
+      for (var i = 0; i < 25; i++) {
+        var cell = document.createElement('div');
+        cell.className = 'pattern-grid-cell';
+        cell.innerText = (i === 12) ? 'FREE' : '';
+        grid.appendChild(cell);
+      }
+    }
+
+    function applyPatternToGrid(patternName, difficulty) {
+      document.getElementById('pattern-name-display').innerText = patternName || "Standard Bingo";
+      document.getElementById('pattern-diff-display').innerText = "Difficulty: " + (difficulty || "Unknown");
+      
+      google.script.run.withSuccessHandler(function(catalog) {
+        var pat = catalog.find(p => p.name === patternName);
+        if (pat && pat.rawJson) {
+            var parsed = JSON.parse(pat.rawJson);
+            var variations = Array.isArray(parsed) && Array.isArray(parsed[0]) ? parsed : [parsed];
+            setPatternVariations(variations);
+        } else {
+            setPatternVariations([[1,1,1,1,1, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0]]);
+        }
+      }).getPatternCatalog();
+    }
+
+    function setPatternVariations(variationsArray) {
+      if (patternAnimationTimer) clearInterval(patternAnimationTimer);
+      currentPatternVariations = variationsArray;
+      activeVariationIdx = 0;
+      renderSinglePatternFrame(currentPatternVariations[0]);
+      if (currentPatternVariations.length > 1) {
+        patternAnimationTimer = setInterval(function() {
+          activeVariationIdx = (activeVariationIdx + 1) % currentPatternVariations.length;
+          renderSinglePatternFrame(currentPatternVariations[activeVariationIdx]);
+        }, 2000);
+      }
+    }
+
+    function renderSinglePatternFrame(gridMask) {
+      var grid = document.getElementById('pattern-grid-container');
+      if (!grid) return;
+      grid.innerHTML = '';
+      for (var i = 0; i < 25; i++) {
+        var cell = document.createElement('div');
+        var isActive = gridMask && gridMask[i] === 1;
+        cell.className = 'pattern-grid-cell' + (isActive ? ' active' : '');
+        cell.innerText = (i === 12) ? 'FREE' : '';
+        grid.appendChild(cell);
+      }
+    }
+
+    function openUpcomingGamesModal() {
+        document.getElementById('pattern-modal').style.display = 'flex';
+        var grid = document.getElementById('pattern-catalog-grid');
+        grid.innerHTML = '<div style="text-align:center; grid-column: 1/-1;">Loading Patterns...</div>';
+        
+        google.script.run.withSuccessHandler(function(catalog) {
+            grid.innerHTML = '';
+            var nextGameNum = currentState && currentState.status === 'PLAYING' ? currentState.currentGameNumber + 1 : (currentState ? currentState.currentGameNumber : 1);
+            var isFinalGame = nextGameNum >= (currentState ? (currentState.effectiveGames || 4) : 4);
+
+            catalog.forEach(function(pat) {
+                var btn = document.createElement('button');
+                btn.className = 'btn btn-secondary';
+                btn.style.cssText = 'display:flex; flex-direction:column; align-items:center; padding:12px 6px; border:2px solid var(--border-panel); background:var(--bg-main); cursor:pointer; height:auto; transition: transform 0.2s;';
+                
+                var pArr = [];
+                try {
+                    let raw = JSON.parse(pat.rawJson);
+                    pArr = Array.isArray(raw[0]) ? raw[0] : raw;
+                } catch(e) {}
+                
+                var gridHtml = '<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:2px; width:70px; height:70px; margin-bottom:10px; background:#e2e8f0; border:1px solid #cbd5e1; padding:2px; border-radius:4px;">';
+                for(var i=0; i<25; i++) {
+                    var isFill = pArr[i] === 1;
+                    var bg = isFill ? '#dc2626' : '#ffffff';
+                    var txt = (i===12) ? '<span style="font-size:5px; font-weight:bold; color:#000;">F</span>' : '';
+                    gridHtml += '<div style="background:'+bg+'; border:1px solid #94a3b8; display:flex; align-items:center; justify-content:center; border-radius:1px;">'+txt+'</div>';
+                }
+                gridHtml += '</div>';
+
+                btn.innerHTML = gridHtml + 
+                                `<div style="font-size:0.75rem; font-weight:900; color:var(--text-main); text-align:center; line-height:1.2; margin-bottom:4px;">${pat.name}</div>
+                                 <div style="font-size:0.65rem; color:var(--accent-color); font-weight:bold; text-transform:uppercase;">${pat.difficulty}</div>`;
+                
+                btn.onclick = function() {
+                    if (pat.difficulty.toLowerCase() === 'expert' && !isFinalGame) {
+                        alert("Expert patterns can only be played on the final game!");
+                        return;
+                    }
+                    google.script.run.overrideGamePattern(currentEventId, 'Specific', pat.name);
+                    closePatternModal();
+                    alert("Next pattern updated to: " + pat.name);
+                };
+                grid.appendChild(btn);
+            });
+        }).getPatternCatalog();
+    }
+    function closePatternModal() { document.getElementById('pattern-modal').style.display = 'none'; }
+
+    function openVenueNotesModal() {
+        document.getElementById('venue-notes-body').innerText = currentVenueNotes || "No specific setup instructions recorded for this venue.";
+        document.getElementById('venue-notes-modal').style.display = 'flex';
+    }
+    function closeVenueNotesModal() {
+        document.getElementById('venue-notes-modal').style.display = 'none';
+    }
+
+    function updateMonitorPreview(state) {
+        var container = document.getElementById('monitor-preview-container');
+        if (isDevTestMode) {
+            if (!container.innerHTML.includes('iframe')) {
+                container.innerHTML = `<iframe src="${APP_BASE_URL}?view=monitor&eventId=${currentEventId}" style="width:100%; height: 200px; border:none; border-radius: 8px; pointer-events:none;"></iframe>`;
+            }
+        } else {
+            let trackTitle = state.currentTrack ? state.currentTrack.title : "Waiting...";
+            container.innerHTML = `
+                <div style="background:#1a100c; color:#fdf8f0; padding:15px; border-radius:8px; text-align:center; border: 2px solid #8b5a2b; height: 160px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color:#ffd700; font-size:0.7rem; text-transform:uppercase; font-weight:bold; margin-bottom: 10px;">${state.themeName}</div>
+                    <div style="font-size: 1rem; font-weight: 900; line-height: 1.2;">${trackTitle}</div>
+                    <div style="font-size:0.7rem; color:#8b5a2b; margin-top: 15px; font-weight: bold;">GAME #${state.currentGameNumber}</div>
+                </div>
+            `;
+        }
+    }
+
+    function saveTimingSettings() {
+        var c = document.getElementById('input-clip-time').value;
+        var p = document.getElementById('input-pause-time').value;
+        google.script.run.updateTimingSettings(currentEventId, c, p);
+    }
+
+    function startPolling() {
+      if(isPolling) return;
+      isPolling = true;
+      google.script.run.withSuccessHandler(function(isTestMode) {
+          isDevTestMode = isTestMode;
+          if (isTestMode) {
+              var cSel = document.getElementById('input-clip-time');
+              var pSel = document.getElementById('input-pause-time');
+              if(!Array.from(cSel.options).some(o=>o.value==='5')) {
+                  cSel.insertAdjacentHTML('afterbegin', '<option value="5" style="color:red;">5s (TEST)</option>');
+                  pSel.insertAdjacentHTML('afterbegin', '<option value="1" style="color:red;">1s (TEST)</option>');
+              }
+              cSel.value = 5; pSel.value = 1;
+              document.getElementById('media-timer-display').innerText = "00:05";
+              saveTimingSettings(); 
+          }
+          pollLiveState();
+      }).getTestMode();
+    }
+
+    function pollLiveState() {
+      google.script.run
+        .withSuccessHandler(function(state) {
+            if(state) renderState(state);
+            setTimeout(pollLiveState, 2500); 
+        })
+        .withFailureHandler(function() {
+            setTimeout(pollLiveState, 5000); 
+        })
+        .getLiveGameState(currentEventId);
+    }
+
+    function renderState(state) {
+      if(!state) return;
+      currentState = state;
+
+      document.getElementById('theme-display-title').innerText = "THEME: " + (state.themeName || "Unknown");
+      
+      var locName = state.locationName || state.venue || "Location Unassigned";
+      document.getElementById('location-display-sub').innerText = "📍 " + locName;
+      
+      var notesBtn = document.getElementById('btn-venue-notes');
+      currentVenueNotes = (state.locationNotes || state.notes || "").trim();
+      
+      if (notesBtn) {
+          notesBtn.style.display = "inline-flex";
+          if (currentVenueNotes.length > 0) {
+              notesBtn.classList.add('pulse-notes-btn');
+              notesBtn.title = "Click to view location setup instructions!";
+          } else {
+              notesBtn.classList.remove('pulse-notes-btn');
+              notesBtn.title = "No setup notes recorded.";
+          }
+      }
+
+      var secWidget = document.getElementById('security-widget');
+      if (secWidget) {
+          if (state.accessType === 'PAID') {
+              secWidget.style.display = 'block';
+              document.getElementById('dj-pin-display').innerText = state.accessPin || "UNIQUE PINS"; 
+          } else {
+              secWidget.style.display = 'none';
+          }
+      }
+
+      document.getElementById('stat-total-played').innerText = state.totalTracksPlayedCount || 0;
+      document.getElementById('stat-game-number').innerText = "GAME #" + (state.currentGameNumber || 1) + " OF " + (state.effectiveGames || 4);
+      document.getElementById('stat-game-played').innerText = state.currentGameSongCount || 0;
+      
+      // Update play status text
+      let statusTxt = "Ready to Start";
+      if(state.status === "PLAYING") statusTxt = "Now Playing";
+      else if(state.status === "PAUSED") statusTxt = "Paused";
+      else if(state.status === "STOPPED") statusTxt = "Game Stopped";
+      document.getElementById('playback-status-text').innerText = statusTxt;
+      
+      var uncalledBadge = document.getElementById('uncalled-count-badge');
+      if (uncalledBadge) {
+          var count = state.uncalledBingoCount || 0;
+          var winnersList = state.uncalledWinningCardIds || [];
+          if (count > 0) {
+              uncalledBadge.innerText = "BINGO CALLED: " + count + " (IDs: " + winnersList.join(', ') + ")";
+              uncalledBadge.classList.add('flash-alert');
+          } else {
+              uncalledBadge.style.background = "#d9534f";
+              uncalledBadge.innerText = "UNCALLED: 0";
+              uncalledBadge.classList.remove('flash-alert');
+          }
+      }
+
+      if (document.activeElement !== document.getElementById('input-clip-time')) {
+          document.getElementById('input-clip-time').value = state.clipDuration || 30;
+      }
+      if (document.activeElement !== document.getElementById('input-pause-time')) {
+          document.getElementById('input-pause-time').value = state.pauseDuration || 15;
+      }
+
+      var nextGameNum = state.status === 'PLAYING' ? state.currentGameNumber + 1 : state.currentGameNumber;
+      var isFinalGame = nextGameNum >= (state.effectiveGames || 4);
+      var diffSelect = document.getElementById('next-game-diff');
+      var hasExpert = Array.from(diffSelect.options).some(o => o.value === 'Expert');
+
+      if (isFinalGame && !hasExpert) {
+          var opt = document.createElement('option');
+          opt.value = 'Expert'; opt.text = '🟥 Level: Expert';
+          diffSelect.appendChild(opt);
+          diffSelect.value = 'Expert';
+      } else if (!isFinalGame && hasExpert) {
+          Array.from(diffSelect.options).find(o => o.value === 'Expert').remove();
+          if(diffSelect.value === 'Expert') diffSelect.value = 'Hard';
+      }
+
+      if (state.patternSchedule && nextGameNum <= (state.effectiveGames || 4)) {
+          let nextPat = state.patternSchedule[nextGameNum - 1];
+          if (nextPat) {
+              document.getElementById('expected-next-pattern').innerText = nextPat.name;
+              document.getElementById('expected-next-diff').innerText = "Level: " + nextPat.difficulty;
+          }
+      } else {
+          document.getElementById('expected-next-pattern').innerText = "End of Session";
+          document.getElementById('expected-next-diff').innerText = "--";
+      }
+
+      if (state.currentTrack) {
+          document.getElementById('current-song-title').innerText = state.currentTrack.title || "Unknown";
+          document.getElementById('current-song-artist').innerText = state.currentTrack.artist || "Unknown";
+          
+          var imgEl = document.getElementById('current-album-art');
+          if (state.allowAlbumArt && state.currentTrack.albumArtUrl) {
+              if (imgEl.src !== state.currentTrack.albumArtUrl) {
+                  imgEl.src = state.currentTrack.albumArtUrl;
+                  imgEl.onerror = function() { this.src = fallbackAlbumArt; this.onerror = null; };
+              }
+          } else {
+              if (imgEl.src !== fallbackAlbumArt) {
+                  imgEl.src = fallbackAlbumArt;
+              }
+          }
+      }
+
+      updateMonitorPreview(state);
+
+      if (state.activePattern && document.getElementById('pattern-name-display').innerText !== state.activePattern) {
+          let diffStr = state.patternSchedule && state.patternSchedule[state.currentGameNumber - 1] ? state.patternSchedule[state.currentGameNumber - 1].difficulty : "Unknown";
+          applyPatternToGrid(state.activePattern, diffStr);
+      }
+
+      var historyDiv = document.getElementById('played-songs-history');
+      if (state.playedSongTitles && state.playedSongTitles.length > 0) {
+          let reversedSongs = [...state.playedSongTitles].reverse();
+          historyDiv.innerHTML = reversedSongs.map(tTitle => {
+              let trackObj = (state.playlistTracks || []).find(t => t.title === tTitle);
+              let bLetter = trackObj ? trackObj.bingoLetter : "?";
+              let artist = trackObj ? trackObj.artist : "Unknown";
+              return `<div style="padding: 8px 6px; border-bottom: 1px solid var(--border-panel); font-size: 0.85rem; display:flex; align-items:center;">
+                        <span style="color:#eab308; font-weight:900; font-size: 1.1rem; width:20px; display:inline-block; text-align:center;">${bLetter}</span> 
+                        <span style="color:var(--text-main); font-weight:bold; margin: 0 8px; flex:1;">${tTitle}</span> 
+                        <span style="color:var(--text-sub); font-size:0.75rem;">${artist}</span>
+                     </div>`;
+          }).join('');
+      } else {
+          historyDiv.innerHTML = '<div style="color: var(--text-sub); font-style: italic; font-size: 0.85rem; text-align: center; margin-top: 20px;">No songs played yet.</div>';
+      }
+    }
+
+    // ==========================================
+    // ACTION HANDLERS (PLAY, PAUSE, REPLAY, STOP)
+    // ==========================================
+    function handleStartGame() { 
+        document.getElementById('btn-start-game').innerText = "STARTING...";
+        google.script.run.withSuccessHandler(function(state) {
+            document.getElementById('btn-start-game').innerText = "▶ START GAME";
+            renderState(state);
+            handleForceNextGame();
+        }).triggerStartGame(currentEventId); 
+    }
+
+    // FIX: Combined Pause / Replay toggle
+    function handlePauseReplay() {
+        if (!currentState) return;
+        
+        if (currentState.status === 'PLAYING') {
+            // PAUSE CURRENT TRACK/TIMER
+            clearInterval(timerInterval);
+            if (isPlayerReady && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+            let statusText = document.getElementById('playback-status-text');
+            if(statusText) { statusText.innerText = "PAUSED"; statusText.style.color = "#f59e0b"; }
+            google.script.run.withSuccessHandler(renderState).triggerPauseTrack(currentEventId);
+        } else {
+            // REPLAY TRACK FROM BEGINNING
+            if (isPlayerReady && ytPlayer && ytPlayer.seekTo) { 
+                ytPlayer.seekTo(0); 
+                ytPlayer.playVideo(); 
+            }
+            var clipSecs = parseInt(document.getElementById('input-clip-time').value) || 30;
+            startCountdown(clipSecs, "CLIP");
+            google.script.run.withSuccessHandler(renderState).triggerRestartTrack(currentEventId);
+        }
+    }
+
+    // FIX: Explicitly Halt Game without advancing
+    function handleGameStop() {
+        if(confirm("🛑 Are you sure you want to STOP the current game? This will halt playback and prevent further songs until a new game is advanced.")) {
+            clearInterval(timerInterval);
+            if (isPlayerReady && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+            let statusText = document.getElementById('playback-status-text');
+            if(statusText) { statusText.innerText = "GAME STOPPED"; statusText.style.color = "#ef4444"; }
+            google.script.run.withSuccessHandler(renderState).triggerStopGame(currentEventId);
+        }
+    }
+
+    function handleForceNextGame() { 
+        google.script.run.withSuccessHandler(function(state) {
+            renderState(state);
+            playTrack(state);
+        }).triggerPlayTrack(currentEventId); 
+    }
+
+    function playTrack(state) {
+        if (state && state.currentTrack && state.currentTrack.youtubeId) {
+            if (isPlayerReady && ytPlayer && ytPlayer.loadVideoById) { 
+                ytPlayer.loadVideoById(state.currentTrack.youtubeId); 
+                if (ytPlayer.unMute) ytPlayer.unMute(); 
+                if (ytPlayer.setVolume) ytPlayer.setVolume(100); 
+                ytPlayer.playVideo(); 
+            }
+        }
+        var clipSecs = parseInt(document.getElementById('input-clip-time').value) || 30;
+        startCountdown(clipSecs, "CLIP");
+    }
+
+    function startCountdown(seconds, label) {
+        clearInterval(timerInterval); 
+        secondsRemaining = seconds; 
+        currentTimerLabel = label; 
+        updateTimerDisplay();
+        
+        timerInterval = setInterval(function() {
+            secondsRemaining--; 
+            updateTimerDisplay();
+            
+            if (secondsRemaining <= 0) {
+                clearInterval(timerInterval); 
+                var pauseSec = parseInt(document.getElementById('input-pause-time').value) || 15;
+                
+                if (currentTimerLabel === "CLIP") { 
+                    if (isPlayerReady && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); 
+                    
+                    google.script.run.withSuccessHandler(function(state) {
+                        if (state && state.playlistTracks && isPlayerReady && ytPlayer && ytPlayer.cueVideoById) {
+                            let played = state.gamePlayedTrackIds || [];
+                            let nextTrack = state.playlistTracks.find(t => !played.includes(t.trackId));
+                            if (nextTrack && nextTrack.youtubeId) {
+                                ytPlayer.cueVideoById(nextTrack.youtubeId);
+                            }
+                        }
+                    }).getLiveGameState(currentEventId);
+                    
+                    startCountdown(pauseSec, "INTERMISSION"); 
+                } 
+                else if (currentTimerLabel === "INTERMISSION") { 
+                    handleForceNextGame(); 
+                }
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() { 
+        var mins = Math.floor(secondsRemaining / 60); 
+        var secs = secondsRemaining % 60; 
+        var formatted = (mins < 10 ? "0" : "") + mins + ":" + (secs < 10 ? "0" : "") + secs;
+        
+        let tDisp = document.getElementById('media-timer-display');
+        let statusText = document.getElementById('playback-status-text');
+        
+        if (currentTimerLabel === "INTERMISSION") {
+            if(tDisp) { tDisp.innerText = formatted; tDisp.style.color = "#f59e0b"; }
+            if(statusText) { statusText.innerText = "Intermission"; statusText.style.color = "#f59e0b"; }
+        } else {
+            if(tDisp) { tDisp.innerText = formatted; tDisp.style.color = "#ef4444"; }
+            if(statusText) { statusText.innerText = "Now Playing"; statusText.style.color = "#ef4444"; }
+        }
+    }
+
+    function handleUnplayableTrack() {
+        if (isSkipping) return; 
+        isSkipping = true; 
+        clearInterval(timerInterval);
+        
+        let statusText = document.getElementById('playback-status-text');
+        if(statusText) { statusText.innerText = "SKIPPING..."; statusText.style.color = "#ef4444"; }
+        
+        setTimeout(function() {
+            google.script.run.withSuccessHandler(function(state) {
+                isSkipping = false; 
+                renderState(state);
+                playTrack(state);
+            }).skipUnplayableTrack(currentEventId, currentState ? (currentState.currentTrack ? currentState.currentTrack.trackId : null) : null);
+        }, 1000); 
+    }
+    
+    function handleBingoCall() {
+        var cardId = prompt("Enter the winning Card ID number to verify:");
+        if(cardId) {
+            google.script.run.withSuccessHandler(function(res) {
+                if(res.valid) alert("🎉 BINGO VERIFIED! Card " + res.cardId + " is a winner!");
+                else alert("❌ NOT A WINNER. Missing: " + res.unplayedRequiredSongs.join(", "));
+            }).verifyBingoCard(currentEventId, cardId);
+        }
+    }
+
+    function handleOverrideDifficulty() {
+        var diff = document.getElementById('next-game-diff').value;
+        google.script.run.withSuccessHandler(function(state){
+            alert("Next pattern difficulty set to: " + diff);
+            renderState(state);
+        }).overrideGamePattern(currentEventId, 'Difficulty', diff);
+    }
+
+    function handleAdvanceGame() {
+        if(confirm("Advance to Game #" + ((currentState.currentGameNumber || 1) + 1) + "?")) {
+            clearInterval(timerInterval);
+            if (isPlayerReady && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+            
+            google.script.run.withSuccessHandler(function(state) {
+                alert("✅ Game Advanced! The board is clear and a new playlist queue is ready.");
+                renderState(state);
+            }).advanceToNextGame(currentEventId, null);
+        }
+    }
+
+    // FIX: Mid-Game Additional Cards Logic
+    function generateExtraCardsUi() {
+        if(!currentState) return;
+        
+        let vCountStr = prompt("How many additional DIGITAL booklets do you want to generate for Game #" + currentState.currentGameNumber + " onward?", "5");
+        if(vCountStr === null) return;
+        
+        let pCountStr = prompt("How many additional PRINTED booklets do you want to generate?", "0");
+        if(pCountStr === null) return;
+        
+        let vCount = parseInt(vCountStr, 10) || 0;
+        let pCount = parseInt(pCountStr, 10) || 0;
+        
+        if (vCount > 0 || pCount > 0) {
+            let isPaid = currentState.accessType === "PAID";
+            let btn = document.querySelector('.btn-secondary[onclick="generateExtraCardsUi()"]');
+            if(btn) { btn.innerText = "GENERATING..."; btn.disabled = true; }
+            
+            google.script.run.withSuccessHandler(function(res) {
+                if(btn) { btn.innerText = "➕ GENERATE EXTRA CARDS"; btn.disabled = false; }
+                if(res.success) alert("✅ Success! Generated " + vCount + " Digital and " + pCount + " Printed cards.\nBatch ID: " + res.batchId);
+                else alert("❌ Error: " + res.error);
+            }).withFailureHandler(function(err) {
+                if(btn) { btn.innerText = "➕ GENERATE EXTRA CARDS"; btn.disabled = false; }
+                alert("❌ Critical Error: " + err.message);
+            }).generateAndPrintCardsForEvent(currentEventId, vCount, pCount, isPaid, currentState.currentGameNumber);
+        }
+    }
+
+    function toggleHideSongs(isHidden) {
+        var list = document.getElementById('played-songs-history');
+        if (list) {
+            list.style.filter = isHidden ? "blur(6px)" : "none";
+            list.style.opacity = isHidden ? "0.4" : "1";
+        }
+    }
+
+    function toggleAutoBingo(val) { google.script.run.toggleAutoBingoSetting(currentEventId, val); }
+    function toggleShowArt(val) { google.script.run.toggleAlbumArtSetting(currentEventId, val); }
+    function openMonitorWindow() { window.open(APP_BASE_URL + '?view=monitor&eventId=' + encodeURIComponent(currentEventId), '_blank'); }
+    function regeneratePin() { alert("Note: Unique PINs are now assigned per-participant. Global PIN change disabled."); }
+
+  </script>
+</body>
+</html>
